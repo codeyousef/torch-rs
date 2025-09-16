@@ -11,6 +11,46 @@ pub use var_store::{Path, VarStore, Variables};
 mod module;
 pub use module::{Module, ModuleT};
 
+// Project Phoenix module system
+#[cfg(feature = "torch-rs")]
+mod phoenix;
+#[cfg(feature = "torch-rs")]
+mod derive;
+#[cfg(feature = "torch-rs")]
+mod phoenix_linear;
+#[cfg(feature = "torch-rs")]
+mod phoenix_conv;
+#[cfg(feature = "torch-rs")]
+mod phoenix_batch_norm;
+#[cfg(feature = "torch-rs")]
+mod phoenix_dropout;
+#[cfg(feature = "torch-rs")]
+mod phoenix_sequential;
+#[cfg(feature = "torch-rs")]
+pub use phoenix::*;
+#[cfg(feature = "torch-rs")]
+pub use derive::*;
+#[cfg(feature = "torch-rs")]
+pub use phoenix_linear::*;
+#[cfg(feature = "torch-rs")]
+pub use phoenix_conv::*;
+#[cfg(feature = "torch-rs")]
+pub use phoenix_batch_norm::*;
+#[cfg(feature = "torch-rs")]
+pub use phoenix_dropout::*;
+#[cfg(feature = "torch-rs")]
+pub use phoenix_sequential::*;
+
+#[cfg(feature = "torch-rs")]
+mod trainer;
+#[cfg(feature = "torch-rs")]
+pub use trainer::*;
+
+#[cfg(feature = "torch-rs")]
+mod metrics;
+#[cfg(feature = "torch-rs")]
+pub use metrics::*;
+
 mod linear;
 pub use linear::*;
 

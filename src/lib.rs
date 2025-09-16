@@ -30,3 +30,14 @@ pub use tensor::{
 
 pub mod nn;
 pub mod vision;
+
+// Project Phoenix modules (feature-gated)
+#[cfg(feature = "torch-rs")]
+pub mod optim;
+#[cfg(feature = "torch-rs")]
+pub use data::{
+    Dataset, VisionDataset, Transform, DatasetError, TransformError,
+    DataLoader, DataLoaderConfig, MnistDataset, Cifar10Dataset,
+    CollateFunction, DefaultCollateFunction,
+    RandomSampler, SequentialSampler, BatchSampler,
+};

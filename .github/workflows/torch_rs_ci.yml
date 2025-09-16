@@ -1,0 +1,243 @@
+name: torch-rs CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly build
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  test:
+    name: Test Suite
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        rust: [stable, nightly]
+        include:
+          - os: ubuntu-latest
+            rust: stable
+            coverage: true
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: ${{ matrix.rust }}
+        override: true
+        components: rustfmt, clippy
+    
+    - name: Cache dependencies
+      uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/registry
+          ~/.cargo/git
+          target
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+    
+    - name: Install PyTorch
+      run: |
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+        elif [[ "${{ runner.os }}" == "macOS" ]]; then
+          pip3 install torch torchvision
+        elif [[ "${{ runner.os }}" == "Windows" ]]; then
+          pip3 install torch torchvision
+        fi
+    
+    - name: Build
+      run: cargo build --verbose --features torch-rs
+    
+    - name: Run tests
+      run: cargo test --verbose --features torch-rs
+    
+    - name: Run torch-rs-specific tests
+      run: |
+        cargo test --tests --features torch-rs
+        cargo test torch_rs --features torch-rs
+        cargo test contract --features torch-rs
+    
+    - name: Generate coverage
+      if: matrix.coverage
+      run: |
+        cargo install cargo-tarpaulin
+        cargo tarpaulin --features torch-rs --out Xml
+    
+    - name: Upload coverage
+      if: matrix.coverage
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./cobertura.xml
+
+  lint:
+    name: Linting
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+        components: rustfmt, clippy
+    
+    - name: Check formatting
+      run: cargo fmt --all -- --check
+    
+    - name: Run Clippy
+      run: cargo clippy --features torch-rs -- -D warnings
+
+  benchmarks:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust nightly
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: nightly
+        override: true
+    
+    - name: Install PyTorch
+      run: pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+    
+    - name: Run benchmarks
+      run: cargo bench --features torch-rs | tee benchmark-results.txt
+    
+    - name: Store benchmark result
+      uses: benchmark-action/github-action-benchmark@v1
+      with:
+        tool: 'cargo'
+        output-file-path: benchmark-results.txt
+        github-token: ${{ secrets.GITHUB_TOKEN }}
+        auto-push: true
+
+  python-bindings:
+    name: Python Bindings
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python-version: ['3.7', '3.8', '3.9', '3.10', '3.11']
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    
+    - name: Install dependencies
+      run: |
+        pip install setuptools-rust numpy pytest
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+    
+    - name: Build Python package
+      working-directory: ./python
+      run: python setup.py develop
+    
+    - name: Run Python tests
+      working-directory: ./python
+      run: pytest tests/
+
+  documentation:
+    name: Documentation
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    
+    - name: Build documentation
+      run: cargo doc --no-deps --features torch-rs
+    
+    - name: Deploy documentation
+      if: github.ref == 'refs/heads/main'
+      uses: peaceiris/actions-gh-pages@v3
+      with:
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        publish_dir: ./target/doc
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Run cargo-audit
+      uses: actions-rs/audit-check@v1
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+
+  release:
+    name: Release
+    needs: [test, lint, benchmarks, python-bindings, documentation]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Install Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        profile: minimal
+        toolchain: stable
+        override: true
+    
+    - name: Build release
+      run: cargo build --release --features torch-rs
+    
+    - name: Create release archive
+      run: |
+        tar -czf torch-rs-${{ github.ref_name }}.tar.gz \
+          target/release/libtch.* \
+          README.md \
+          LICENSE \
+          TORCH_RS_GUIDE.md
+    
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: torch-rs-${{ github.ref_name }}.tar.gz
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Publish to crates.io
+      run: |
+        cargo publish --features torch-rs
+      env:
+        CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}

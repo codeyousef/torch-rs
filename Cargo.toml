@@ -27,12 +27,20 @@ zip = "0.6"
 half = "2"
 safetensors = "0.3.0"
 
+# Phoenix feature dependencies
+proc-macro2 = { version = "1.0", optional = true }
+quote = { version = "1.0", optional = true }
+syn = { version = "2.0", features = ["full"], optional = true }
+
 cpython = { version = "0.7.1", optional = true }
+pyo3 = { version = "0.24", optional = true }
 regex = { version = "1.6.0", optional = true }
 image = { version = "0.24.5", optional = true }
 clap = { version = "4.2.4", features = ["derive"], optional = true }
 serde_json = { version = "1.0.96", optional = true }
 memmap2 = { version = "0.6.1", optional = true }
+flate2 = { version = "1.0", optional = true }
+indicatif = { version = "0.17", optional = true }
 
 [dev-dependencies]
 anyhow = "^1.0.60"
@@ -41,6 +49,7 @@ anyhow = "^1.0.60"
 members = [
   "torch-sys",
   "pyo3-tch",
+  "tch-vision",
   "examples/python-extension",
 ]
 
@@ -50,6 +59,9 @@ python-extension = ["torch-sys/python-extension"]
 rl-python = ["cpython"]
 doc-only = ["torch-sys/doc-only"]
 cuda-tests = []
+# torch-rs enhanced features
+torch-rs = ["proc-macro2", "quote", "syn", "flate2", "indicatif"]
+python-compat = ["pyo3", "torch-rs"]
 
 [package.metadata.docs.rs]
 features = [ "doc-only" ]
@@ -65,3 +77,8 @@ required-features = ["regex"]
 [[example]]
 name = "llama"
 required-features = ["regex", "clap", "serde_json", "memmap2"]
+
+[[bench]]
+name = "torch_rs_benchmarks"
+harness = false
+required-features = ["torch-rs"]

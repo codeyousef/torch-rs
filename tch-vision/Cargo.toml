@@ -1,0 +1,16 @@
+[package]
+name = "tch-vision"
+version = "0.1.0"
+authors = ["Project Phoenix Contributors"]
+edition = "2021"
+description = "Computer vision utilities and models for torch-rs (Project Phoenix)"
+license = "MIT/Apache-2.0"
+
+[dependencies]
+tch = { version = "0.21.0", path = "..", features = ["torch-rs"] }
+thiserror = "1.0"
+reqwest = { version = "0.11", features = ["blocking", "json"] }
+sha2 = "0.10"
+dirs = "5.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"

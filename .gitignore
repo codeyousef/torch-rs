@@ -17,3 +17,10 @@ __pycache__
 *.so
 *.dylib
 llama-tokenizer.json
+
+# Claude Code and Specify framework files
+.claude/
+.specify/
+specs/
+CLAUDE.md
+features.md

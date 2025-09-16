@@ -1,0 +1,22 @@
+[package]
+name = "torch-rs-py"
+version = "0.21.0"
+edition = "2021"
+
+[lib]
+name = "torch_rs"
+crate-type = ["cdylib"]
+
+[dependencies]
+tch = { path = "..", features = ["torch-rs"] }
+pyo3 = { version = "0.20", features = ["extension-module"] }
+numpy = "0.20"
+ndarray = "0.15"
+
+[features]
+default = ["pyo3/extension-module"]
+
+[profile.release]
+lto = true
+codegen-units = 1
+opt-level = 3

@@ -1,24 +1,156 @@
-# tch-rs
-Rust bindings for the C++ api of PyTorch. The goal of the `tch` crate is to
-provide some thin wrappers around the C++ PyTorch api (a.k.a. libtorch). It
-aims at staying as close as possible to the original C++ api. More idiomatic
-rust bindings could then be developed on top of this. The
-[documentation](https://docs.rs/tch/) can be found on docs.rs.
+# torch-rs
+
+**A PyTorch-compatible deep learning library for Rust with Python interoperability**
+
+> **Note**: This is a fork of [tch-rs](https://github.com/LaurentMazare/tch-rs) that extends the original crate with comprehensive PyTorch-like APIs, pre-trained models, and seamless Python integration.
+
+While the original `tch-rs` provides thin wrappers around PyTorch's C++ API, **torch-rs** builds upon this foundation to offer:
+
+- 🚀 **Complete PyTorch API compatibility** - Familiar APIs for seamless migration from PyTorch
+- 🦀 **Native Rust performance** - Zero-cost abstractions with memory safety guarantees
+- 🐍 **Python interoperability** - Seamless integration via PyO3 bindings
+- 🧠 **Pre-trained models** - ResNet, VGG, Vision Transformers with automatic weight downloading
+- ⚡ **Production-ready training** - Lightning-style trainer with advanced features
+- 📊 **Comprehensive ecosystem** - Optimizers, schedulers, metrics, and data transforms
+
+The [documentation](https://docs.rs/tch/) can be found on docs.rs.
 
 [![Build Status](https://github.com/LaurentMazare/tch-rs/workflows/Continuous%20integration/badge.svg)](https://github.com/LaurentMazare/tch-rs/actions)
 [![Latest version](https://img.shields.io/crates/v/tch.svg)](https://crates.io/crates/tch)
 [![Documentation](https://docs.rs/tch/badge.svg)](https://docs.rs/tch)
 [![Dependency Status](https://deps.rs/repo/github/LaurentMazare/tch-rs/status.svg)](https://deps.rs/repo/github/LaurentMazare/tch-rs)
 ![License](https://img.shields.io/crates/l/tch.svg)
-[changelog](https://github.com/LaurentMazare/tch-rs/blob/main/CHANGELOG.md)
+
+## 🌟 Key Features
+
+- **🎯 PyTorch Compatibility**: Drop-in replacement APIs for PyTorch users
+- **🛡️ Memory Safety**: Rust's ownership system prevents memory leaks and segfaults
+- **⚡ Zero-Cost Abstractions**: High-level APIs with no runtime performance penalty
+- **🔧 Production Ready**: Lightning-style trainer, automatic mixed precision, gradient accumulation
+- **🤖 Pre-trained Models**: ResNet, VGG, ViT with one-line model loading
+- **🐍 Python Bindings**: Use torch-rs from Python with numpy interoperability
+- **📈 Comprehensive**: Full ecosystem of optimizers, schedulers, metrics, and transforms
 
 
-The code generation part for the C api on top of libtorch comes from
-[ocaml-torch](https://github.com/LaurentMazare/ocaml-torch).
+**Acknowledgments:**
+- Original `tch-rs` by [Laurent Mazare](https://github.com/LaurentMazare/tch-rs)
+- C API code generation from [ocaml-torch](https://github.com/LaurentMazare/ocaml-torch)
+- Inspired by [PyTorch](https://pytorch.org) and [PyTorch Lightning](https://lightning.ai)
 
-## Getting Started
+## 🚀 Quick Start
 
-This crate requires the C++ PyTorch library (libtorch) in version *v2.8.0* to be available on
+### Installation
+
+**Rust:**
+```toml
+[dependencies]
+tch = { version = "0.21.0", features = ["phoenix"] }  # Enable torch-rs features
+tch-vision = "0.21.0"  # For computer vision models and transforms
+```
+
+**Python:**
+```bash
+cd python/
+pip install setuptools-rust
+python setup.py install
+```
+
+### Basic Usage
+
+**Rust:**
+```rust
+use tch::nn::*;
+use tch::{Device, Tensor};
+
+fn main() {
+    // Create tensors
+    let a = Tensor::randn(&[3, 4], (tch::Kind::Float, Device::Cpu));
+    let b = Tensor::ones(&[3, 4], (tch::Kind::Float, Device::Cpu));
+
+    // Operations
+    let c = &a + &b;
+    let d = a.matmul(&b.transpose(0, 1));
+
+    // Build neural networks
+    let model = Sequential::new()
+        .add(Linear::new(784, 128))
+        .add_fn(|x| x.relu())
+        .add(Linear::new(128, 10));
+
+    println!("Model created with {} parameters", model.num_parameters());
+}
+```
+
+**Python:**
+```python
+import torch_rs as trs
+import numpy as np
+
+# Create tensors
+a = trs.randn([3, 4])
+b = trs.ones([3, 4])
+
+# Operations
+c = a + b
+d = a.matmul(b.T)
+
+# NumPy interop
+np_array = np.random.randn(2, 3).astype(np.float32)
+tensor = trs.from_numpy(np_array)
+
+# Neural networks
+model = trs.Sequential()
+model.add(trs.Linear(784, 128))
+model.add(trs.Linear(128, 10))
+```
+
+## 🧠 Pre-trained Models
+
+```rust
+use tch_vision::models;
+
+// Load ResNet50 with ImageNet weights
+let mut model = models::resnet50(&vs.root(), 1000);
+model.download_pretrained("resnet50").await?;
+
+// Vision Transformer
+let vit = models::vit_base_patch16_224(&vs.root(), 1000);
+
+// VGG with batch normalization
+let vgg = models::vgg16(&vs.root(), 1000, true);
+```
+
+## 🏋️ Training with Lightning-Style Trainer
+
+```rust
+use tch::nn::trainer::{Trainer, TrainerConfig, LightningModule};
+
+// Configure training
+let config = TrainerConfig {
+    max_epochs: 10,
+    gradient_clip_val: Some(1.0),
+    enable_progress_bar: true,
+    early_stopping_patience: Some(5),
+    devices: vec![Device::cuda_if_available()],
+    ..Default::default()
+};
+
+// Train model
+let mut trainer = Trainer::new(config);
+trainer.fit(&mut model, &mut train_loader, Some(&mut val_loader))?;
+```
+
+## 📚 Documentation
+
+- **[Complete Guide](TORCH_RS_GUIDE.md)** - Comprehensive usage documentation
+- **[Migration Guide](MIGRATION_GUIDE.md)** - Migrate from PyTorch to torch-rs
+- **[Performance Guide](PERFORMANCE_GUIDE.md)** - Optimization best practices
+- **[Python Examples](python/examples/)** - Jupyter-style tutorials
+- **[API Reference](https://docs.rs/tch)** - Detailed API documentation
+
+## 🔧 System Requirements
+
+torch-rs requires the C++ PyTorch library (libtorch) in version *v2.8.0* to be available on
 your system. You can either:
 
 - Use the system-wide libtorch installation (default).
@@ -203,13 +335,50 @@ pub fn run() -> Result<()> {
 More details on the training loop can be found in the
 [detailed tutorial](https://github.com/LaurentMazare/tch-rs/tree/master/examples/mnist).
 
+### Enhanced PyTorch-Style API with torch-rs
+
+This fork provides enhanced PyTorch-compatible APIs for more intuitive model building:
+
+```rust
+use tch::{nn::{TorchModule, Sequential}, Device};
+
+// Build models using the enhanced Sequential API
+let model = Sequential::new()
+    .add(tch::nn::Linear::new(784, 128))
+    .add(tch::nn::ReLU::new())
+    .add(tch::nn::Linear::new(128, 10));
+
+// Automatic parameter discovery
+let parameters = model.parameters();
+let optimizer = tch::optim::Adam::new(parameters, 0.001);
+
+// PyTorch-style training loop
+let output = model.forward(&input);
+let loss = output.cross_entropy_for_logits(&targets);
+loss.backward();
+optimizer.step();
+optimizer.zero_grad();
+```
+
 ### Using some Pre-Trained Model
 
-The [pretrained-models  example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/pretrained-models/main.rs)
+The [pretrained-models example](https://github.com/LaurentMazare/tch-rs/tree/master/examples/pretrained-models/main.rs)
 illustrates how to use some pre-trained computer vision model on an image.
-The weights - which have been extracted from the PyTorch implementation - can be
-downloaded here [resnet18.ot](https://github.com/LaurentMazare/tch-rs/releases/download/mw/resnet18.ot)
-and here [resnet34.ot](https://github.com/LaurentMazare/tch-rs/releases/download/mw/resnet34.ot).
+
+**Original tch-rs approach:** Manual weight downloading and loading.
+**Enhanced torch-rs approach:** Automatic model downloading with built-in model zoo.
+
+```rust
+// Original tch-rs approach
+let vs = tch::nn::VarStore::new(tch::Device::Cpu);
+let resnet18 = tch::vision::resnet::resnet18(vs.root(), 1000);
+vs.load("resnet18.ot")?; // Manual weight file
+
+// Enhanced torch-rs approach (with phoenix feature)
+use tch::models::resnet18;
+let model = resnet18(Some(1000)); // num_classes
+model.download_pretrained("resnet18")?; // Automatic download
+```
 
 The example can then be run via the following command:
 ```bash
@@ -309,8 +478,7 @@ Further examples include:
   [char-rnn](https://github.com/LaurentMazare/tch-rs/blob/master/examples/char-rnn)
   illustrating character level language modeling using Recurrent Neural Networks.
 * [Neural style transfer](https://github.com/LaurentMazare/tch-rs/blob/master/examples/neural-style-transfer)
-  uses a pre-trained VGG-16 model to compose an image in the style of another image (pre-trained weights:
-  [vgg16.ot](https://github.com/LaurentMazare/tch-rs/releases/download/mw/vgg16.ot)).
+  uses a pre-trained VGG-16 model to compose an image in the style of another image.
 * Some [ResNet examples on CIFAR-10](https://github.com/LaurentMazare/tch-rs/tree/master/examples/cifar).
 * A [tutorial](https://github.com/LaurentMazare/tch-rs/tree/master/examples/jit)
   showing how to deploy/run some Python trained models using
@@ -324,6 +492,18 @@ Further examples include:
   similar to minGPT.
 * A [Stable Diffusion](https://github.com/LaurentMazare/diffusers-rs)
   implementation following the lines of hugginface's diffusers library.
+
+### Enhanced torch-rs Examples
+
+This fork includes additional examples showcasing the enhanced PyTorch-compatible features:
+
+* **Lightning-Style Training**: Examples using the `LightningModule` trait for organized training loops
+* **Computer Vision Pipeline**: Complete CV workflows with transforms, data loading, and pre-trained models
+* **Python Integration**: Jupyter notebooks demonstrating seamless Python-Rust interoperability
+* **Model Zoo Usage**: Examples using the built-in model downloader for ResNet, VGG, and Vision Transformers
+* **Advanced Optimizers**: Demonstrations of AdamW, learning rate schedulers, and mixed precision training
+
+See the `examples/notebooks/` directory for interactive tutorials.
 
 External material:
 * A [tutorial](http://vegapit.com/article/how-to-use-torch-in-rust-with-tch-rs) showing how to use Torch to compute option prices and greeks.
@@ -345,10 +525,27 @@ See this [issue](https://github.com/LaurentMazare/tch-rs/issues/596), this could
 be caused by rust-analyzer not knowing about the proper environment variables
 like `LIBTORCH` and `LD_LIBRARY_PATH`.
 
-### Using Rust/tch code from Python.
-It is possible to call Rust/tch code from Python via PyO3,
-[tch-ext](https://github.com/LaurentMazare/tch-ext) provides an example of such
-a Python extension.
+### Using Rust/torch-rs code from Python.
+This fork provides enhanced Python integration via PyO3. With the `python-compat` feature enabled,
+you can seamlessly use torch-rs models and tensors from Python with NumPy interoperability.
+
+```python
+import torch_rs as trs
+import numpy as np
+
+# Create models in Python using Rust backend
+model = trs.Sequential()
+model.add(trs.Linear(784, 128))
+model.add(trs.Linear(128, 10))
+
+# Convert between NumPy and torch-rs tensors
+np_array = np.random.randn(32, 784)
+tensor = trs.from_numpy(np_array)
+result = model.forward(tensor)
+output = trs.to_numpy(result)
+```
+
+The original [tch-ext](https://github.com/LaurentMazare/tch-ext) example still applies for basic PyO3 integration.
 
 ### Error loading shared libraries. 
 
@@ -364,9 +561,23 @@ export LD_LIBRARY_PATH=/path/to/libtorch/lib:$LD_LIBRARY_PATH
 export DYLD_LIBRARY_PATH=/path/to/libtorch/lib:$DYLD_LIBRARY_PATH
 ```
 
+## Acknowledgments
+
+This project is a fork of the excellent [tch-rs](https://github.com/LaurentMazare/tch-rs) crate by Laurent Mazare. The original tch-rs provides the foundational PyTorch bindings that make this enhanced version possible.
+
+### What's New in torch-rs
+
+- **PyTorch-Compatible APIs**: Enhanced Sequential, Module, and training abstractions
+- **Pre-trained Model Zoo**: Automatic downloading and loading of popular CV models
+- **Lightning-Style Training**: Organized training loops with built-in metrics and logging
+- **Python Integration**: Seamless NumPy interoperability and Python bindings
+- **Advanced Optimizers**: AdamW, learning rate scheduling, and mixed precision support
+- **Complete Documentation**: Comprehensive guides, tutorials, and API reference
+
 ## License
-`tch-rs` is distributed under the terms of both the MIT license
-and the Apache license (version 2.0), at your option.
+`torch-rs` is distributed under the terms of both the MIT license
+and the Apache license (version 2.0), at your option, maintaining compatibility
+with the original tch-rs license.
 
 See [LICENSE-APACHE](LICENSE-APACHE), [LICENSE-MIT](LICENSE-MIT) for more
 details.
