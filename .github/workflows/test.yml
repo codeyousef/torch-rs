@@ -29,14 +29,12 @@ jobs:
             python: '3.8'
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
+      uses: dtolnay/rust-toolchain@stable
       with:
-        profile: minimal
         toolchain: ${{ matrix.rust }}
-        override: true
         components: rustfmt, clippy
 
     - name: Setup Python
@@ -44,10 +42,17 @@ jobs:
       with:
         python-version: ${{ matrix.python }}
 
-    - name: Install PyTorch
+    - name: Install PyTorch (Linux/Windows)
+      if: runner.os != 'macOS'
       run: |
         python -m pip install --upgrade pip
         pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
+    - name: Install PyTorch (macOS)
+      if: runner.os == 'macOS'
+      run: |
+        python -m pip install --upgrade pip
+        pip install torch torchvision --break-system-packages
 
     - name: Cache cargo registry
       uses: actions/cache@v3
@@ -83,14 +88,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
+      uses: dtolnay/rust-toolchain@stable
 
     - name: Setup Python
       uses: actions/setup-python@v4
@@ -126,14 +127,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
 
     - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        profile: minimal
-        toolchain: stable
-        override: true
+      uses: dtolnay/rust-toolchain@stable
 
     - name: Setup Python
       uses: actions/setup-python@v4
