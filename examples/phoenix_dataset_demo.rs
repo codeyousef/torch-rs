@@ -4,9 +4,9 @@
 
 #[cfg(feature = "torch-rs")]
 use tch::{
-    nn::phoenix::{PhoenixModule, Linear, Sequential, Dropout},
+    data::{DataLoader, DataLoaderConfig, Dataset, MnistDataset, VisionDataset},
+    nn::phoenix::{Dropout, Linear, PhoenixModule, Sequential},
     optim::phoenix::{Adam, PhoenixOptimizer},
-    data::{MnistDataset, DataLoader, DataLoaderConfig, Dataset, VisionDataset},
     Device, Kind, Tensor,
 };
 
@@ -24,12 +24,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   Image shape: {:?}", mock_dataset.image_shape());
 
     // Create data loader with batching and shuffling
-    let config = DataLoaderConfig {
-        batch_size: 32,
-        shuffle: true,
-        drop_last: false,
-        ..Default::default()
-    };
+    let config =
+        DataLoaderConfig { batch_size: 32, shuffle: true, drop_last: false, ..Default::default() };
 
     let mut dataloader = DataLoader::new(mock_dataset, config);
     println!("✅ DataLoader created with {} batches", dataloader.len());
@@ -59,13 +55,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let mut batch_count = 0;
     for batch_result in dataloader.next() {
-        if batch_count >= 3 { break; } // Just show first 3 batches for demo
+        if batch_count >= 3 {
+            break;
+        } // Just show first 3 batches for demo
 
         let (images, labels) = batch_result?;
         batch_count += 1;
 
-        println!("  Batch {}: images={:?}, labels={:?}",
-                 batch_count, images.size(), labels.size());
+        println!("  Batch {}: images={:?}, labels={:?}", batch_count, images.size(), labels.size());
 
         // Forward pass
         let output = model.forward(&images);
@@ -132,10 +129,7 @@ impl Dataset for MockMnistDataset {
 
     fn get(&self, index: usize) -> Result<Self::Item, tch::data::DatasetError> {
         if index >= self.size {
-            return Err(tch::data::DatasetError::IndexOutOfBounds {
-                index,
-                size: self.size
-            });
+            return Err(tch::data::DatasetError::IndexOutOfBounds { index, size: self.size });
         }
 
         // Create fake MNIST-like image (28x28, single channel)
@@ -164,7 +158,10 @@ impl VisionDataset for MockMnistDataset {
     type Image = Tensor;
     type Target = i64;
 
-    fn get_item(&self, index: usize) -> Result<(Self::Image, Self::Target), tch::data::DatasetError> {
+    fn get_item(
+        &self,
+        index: usize,
+    ) -> Result<(Self::Image, Self::Target), tch::data::DatasetError> {
         self.get(index)
     }
 
@@ -193,7 +190,7 @@ struct MnistCNN {
 #[cfg(feature = "torch-rs")]
 impl MnistCNN {
     fn new() -> Self {
-        use tch::nn::phoenix::{Conv2d, BatchNorm2d};
+        use tch::nn::phoenix::{BatchNorm2d, Conv2d};
 
         let conv = Sequential::new()
             .add(Conv2d::new(1, 32, 3)) // 28x28 -> 26x26
@@ -207,11 +204,7 @@ impl MnistCNN {
             .add(Dropout::new(0.5))
             .add(Linear::new(128, 10));
 
-        Self {
-            conv,
-            classifier,
-            training: true,
-        }
+        Self { conv, classifier, training: true }
     }
 }
 
@@ -225,10 +218,7 @@ impl tch::nn::Module for MnistCNN {
 }
 
 #[cfg(feature = "torch-rs")]
-tch::impl_phoenix_module!(MnistCNN {
-    conv: Sequential,
-    classifier: Sequential,
-});
+tch::impl_phoenix_module!(MnistCNN { conv: Sequential, classifier: Sequential });
 
 #[cfg(not(feature = "torch-rs"))]
 fn main() {

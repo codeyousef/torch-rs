@@ -75,7 +75,8 @@ pub mod optimizer {
         /// - Must validate state compatibility with current parameters
         /// - Must restore exact optimization behavior
         /// - Must handle version differences gracefully
-        fn load_state_dict(&mut self, state: HashMap<String, Tensor>) -> Result<(), OptimizerError>;
+        fn load_state_dict(&mut self, state: HashMap<String, Tensor>)
+            -> Result<(), OptimizerError>;
 
         /// Get parameter groups with mutable access
         fn parameter_groups_mut(&mut self) -> &mut [ParameterGroup];
@@ -90,10 +91,7 @@ pub mod optimizer {
 
         /// Get total number of parameters across all groups
         fn num_parameters(&self) -> usize {
-            self.parameter_groups()
-                .iter()
-                .map(|group| group.parameters.len())
-                .sum()
+            self.parameter_groups().iter().map(|group| group.parameters.len()).sum()
         }
     }
 
@@ -159,7 +157,14 @@ pub mod optimizer {
                 "momentum" => self.momentum,
                 "dampening" => self.dampening,
                 "nesterov" => self.nesterov.map(|b| if b { 1.0 } else { 0.0 }),
-                "beta1" | "beta2" | "eps" | "amsgrad" | "alpha" | "lr_decay" | "initial_accumulator_value" | "centered" => None,
+                "beta1"
+                | "beta2"
+                | "eps"
+                | "amsgrad"
+                | "alpha"
+                | "lr_decay"
+                | "initial_accumulator_value"
+                | "centered" => None,
                 _ => None,
             }
         }
@@ -172,7 +177,7 @@ pub mod optimizer {
                 "momentum" => self.momentum = Some(value),
                 "dampening" => self.dampening = Some(value),
                 "nesterov" => self.nesterov = Some(value != 0.0),
-                _ => {},
+                _ => {}
             }
         }
 
@@ -281,7 +286,10 @@ pub mod optimizer {
         }
 
         /// Validate parameter group
-        pub fn validate_parameter_group(group: &ParameterGroup, group_id: usize) -> Result<(), OptimizerError> {
+        pub fn validate_parameter_group(
+            group: &ParameterGroup,
+            group_id: usize,
+        ) -> Result<(), OptimizerError> {
             validate_lr(group.learning_rate).map_err(|_| {
                 OptimizerError::InvalidParameterGroup {
                     group_id,
@@ -292,7 +300,10 @@ pub mod optimizer {
             if group.weight_decay < 0.0 {
                 return Err(OptimizerError::InvalidParameterGroup {
                     group_id,
-                    reason: format!("Weight decay must be non-negative, got: {}", group.weight_decay),
+                    reason: format!(
+                        "Weight decay must be non-negative, got: {}",
+                        group.weight_decay
+                    ),
                 });
             }
 
@@ -348,7 +359,7 @@ pub mod optimizer {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::{Kind, Device, Tensor};
+        use crate::{Device, Kind, Tensor};
 
         fn create_test_tensors() -> Vec<Tensor> {
             vec![
@@ -418,9 +429,7 @@ pub mod optimizer {
             }
 
             // Store original gradients
-            let original_grads: Vec<_> = tensors.iter()
-                .map(|t| t.grad().unwrap().copy())
-                .collect();
+            let original_grads: Vec<_> = tensors.iter().map(|t| t.grad().unwrap().copy()).collect();
 
             // Apply weight decay
             utils::apply_weight_decay(&param_ptrs, 0.01);
@@ -429,7 +438,10 @@ pub mod optimizer {
             for (i, tensor) in tensors.iter().enumerate() {
                 let current_grad = tensor.grad().unwrap();
                 let diff = (&current_grad - &original_grads[i]).abs().sum(Kind::Float);
-                assert!(diff.double_value(&[]) > 0.0, "Gradient should be modified by weight decay");
+                assert!(
+                    diff.double_value(&[]) > 0.0,
+                    "Gradient should be modified by weight decay"
+                );
             }
         }
 

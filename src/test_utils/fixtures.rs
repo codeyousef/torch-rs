@@ -172,12 +172,7 @@ pub trait Dataset: Clone {
     }
 
     fn iter(&self) -> impl Iterator<Item = (Tensor, i64)> {
-        (0..100).map(|i| {
-            (
-                Tensor::randn(&[1, 28, 28], (Kind::Float, Device::Cpu)),
-                (i % 10) as i64,
-            )
-        })
+        (0..100).map(|i| (Tensor::randn(&[1, 28, 28], (Kind::Float, Device::Cpu)), (i % 10) as i64))
     }
 
     fn with_transforms(self, _transforms: Vec<Transform>) -> Self {

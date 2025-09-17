@@ -5,7 +5,7 @@
 
 #[cfg(feature = "torch-rs")]
 pub mod module {
-    use crate::{Device, Tensor, TchError};
+    use crate::{Device, TchError, Tensor};
     use std::collections::HashMap;
 
     /// Extended Module trait for Project Phoenix
@@ -77,11 +77,7 @@ pub mod module {
 
         /// Get the total number of trainable parameters
         fn num_trainable_parameters(&self) -> usize {
-            self.parameters()
-                .iter()
-                .filter(|p| p.requires_grad())
-                .map(|p| p.numel() as usize)
-                .sum()
+            self.parameters().iter().filter(|p| p.requires_grad()).map(|p| p.numel() as usize).sum()
         }
 
         /// Get state dictionary (all parameters and buffers as a map)
@@ -102,7 +98,10 @@ pub mod module {
         }
 
         /// Load state dictionary into module
-        fn load_state_dict(&mut self, state_dict: HashMap<String, Tensor>) -> Result<(), PhoenixModuleError> {
+        fn load_state_dict(
+            &mut self,
+            state_dict: HashMap<String, Tensor>,
+        ) -> Result<(), PhoenixModuleError> {
             let mut named_params = self.named_parameters_mut();
             let mut named_buffers = self.named_buffers_mut();
 
@@ -137,23 +136,16 @@ pub mod module {
     /// Errors that can occur during Phoenix module operations
     #[derive(Debug, thiserror::Error)]
     pub enum PhoenixModuleError {
-        #[error("Shape mismatch for parameter '{parameter}': expected {expected:?}, got {actual:?}")]
-        ShapeMismatch {
-            expected: Vec<i64>,
-            actual: Vec<i64>,
-            parameter: String,
-        },
+        #[error(
+            "Shape mismatch for parameter '{parameter}': expected {expected:?}, got {actual:?}"
+        )]
+        ShapeMismatch { expected: Vec<i64>, actual: Vec<i64>, parameter: String },
 
         #[error("Device mismatch: module on {module_device:?}, input on {input_device:?}")]
-        DeviceMismatch {
-            module_device: Device,
-            input_device: Device,
-        },
+        DeviceMismatch { module_device: Device, input_device: Device },
 
         #[error("Module not initialized: {reason}")]
-        NotInitialized {
-            reason: String,
-        },
+        NotInitialized { reason: String },
 
         #[error("Unknown parameter: {0}")]
         UnknownParameter(String),

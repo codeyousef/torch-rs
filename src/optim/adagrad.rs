@@ -2,7 +2,7 @@
 //!
 //! Adagrad adapts the learning rate per parameter using accumulated squared gradients
 
-use crate::optim::{PhoenixOptimizer, OptimizerError, ParameterGroup};
+use crate::optim::{OptimizerError, ParameterGroup, PhoenixOptimizer};
 use crate::Tensor;
 use std::collections::HashMap;
 
@@ -49,11 +49,7 @@ impl Adagrad {
     {
         let parameter_groups = vec![ParameterGroup::new(params.into_iter().collect())];
 
-        Ok(Self {
-            parameter_groups,
-            state: HashMap::new(),
-            defaults: config,
-        })
+        Ok(Self { parameter_groups, state: HashMap::new(), defaults: config })
     }
 
     pub fn new_with_defaults<I>(params: I) -> Result<Self, OptimizerError>
@@ -94,8 +90,10 @@ impl Adagrad {
     }
 
     fn get_initial_accumulator_value(&self, group: &ParameterGroup) -> f64 {
-        group.get_option("initial_accumulator_value")
-            .unwrap_or(self.defaults.initial_accumulator_value.into()).into()
+        group
+            .get_option("initial_accumulator_value")
+            .unwrap_or(self.defaults.initial_accumulator_value.into())
+            .into()
     }
 
     fn get_eps(&self, group: &ParameterGroup) -> f64 {
@@ -130,10 +128,7 @@ impl PhoenixOptimizer for Adagrad {
                         } else {
                             Tensor::zeros_like(&param)
                         };
-                        AdagradState {
-                            step: 0,
-                            sum,
-                        }
+                        AdagradState { step: 0, sum }
                     });
 
                     state.step += 1;
@@ -171,23 +166,30 @@ impl PhoenixOptimizer for Adagrad {
 
         state_dict.insert("lr".to_string(), OptimizerValue::Float(self.defaults.lr));
         state_dict.insert("lr_decay".to_string(), OptimizerValue::Float(self.defaults.lr_decay));
-        state_dict.insert("weight_decay".to_string(), OptimizerValue::Float(self.defaults.weight_decay));
-        state_dict.insert("initial_accumulator_value".to_string(), 
-            OptimizerValue::Float(self.defaults.initial_accumulator_value));
+        state_dict
+            .insert("weight_decay".to_string(), OptimizerValue::Float(self.defaults.weight_decay));
+        state_dict.insert(
+            "initial_accumulator_value".to_string(),
+            OptimizerValue::Float(self.defaults.initial_accumulator_value),
+        );
         state_dict.insert("eps".to_string(), OptimizerValue::Float(self.defaults.eps));
 
         for (param_id, state) in &self.state {
             let prefix = format!("state.{}", param_id);
             state_dict.insert(format!("{}.step", prefix), OptimizerValue::Int(state.step));
-            state_dict.insert(format!("{}.sum", prefix),
-                OptimizerValue::Tensor(state.sum.shallow_clone()));
+            state_dict.insert(
+                format!("{}.sum", prefix),
+                OptimizerValue::Tensor(state.sum.shallow_clone()),
+            );
         }
 
         state_dict
     }
 
-    fn load_state_dict(&mut self, state_dict: &HashMap<String, crate::nn::OptimizerValue>)
-        -> Result<(), OptimizerError> {
+    fn load_state_dict(
+        &mut self,
+        state_dict: &HashMap<String, crate::nn::OptimizerValue>,
+    ) -> Result<(), OptimizerError> {
         use crate::nn::OptimizerValue;
 
         if let Some(OptimizerValue::Float(lr)) = state_dict.get("lr") {
@@ -199,7 +201,9 @@ impl PhoenixOptimizer for Adagrad {
         if let Some(OptimizerValue::Float(weight_decay)) = state_dict.get("weight_decay") {
             self.defaults.weight_decay = *weight_decay;
         }
-        if let Some(OptimizerValue::Float(initial_accumulator_value)) = state_dict.get("initial_accumulator_value") {
+        if let Some(OptimizerValue::Float(initial_accumulator_value)) =
+            state_dict.get("initial_accumulator_value")
+        {
             self.defaults.initial_accumulator_value = *initial_accumulator_value;
         }
         if let Some(OptimizerValue::Float(eps)) = state_dict.get("eps") {
@@ -213,16 +217,16 @@ impl PhoenixOptimizer for Adagrad {
         for (key, value) in state_dict {
             if let Some(state_key) = key.strip_prefix("state.") {
                 if let Some(dot_pos) = state_key.find('.') {
-                    let param_id: usize = state_key[..dot_pos].parse()
-                        .map_err(|_| OptimizerError::StateIncompatible { reason: "Invalid parameter ID".to_string() })?;
+                    let param_id: usize = state_key[..dot_pos].parse().map_err(|_| {
+                        OptimizerError::StateIncompatible {
+                            reason: "Invalid parameter ID".to_string(),
+                        }
+                    })?;
                     let field = &state_key[dot_pos + 1..];
 
-                    let state = param_states.entry(param_id).or_insert_with(|| {
-                        AdagradState {
-                            step: 0,
-                            sum: Tensor::new(),
-                        }
-                    });
+                    let state = param_states
+                        .entry(param_id)
+                        .or_insert_with(|| AdagradState { step: 0, sum: Tensor::new() });
 
                     match (field, value) {
                         ("step", OptimizerValue::Int(step)) => state.step = *step,

@@ -76,10 +76,7 @@ mod phoenix_derive_impl {
         }
 
         /// Set training mode for nested fields
-        pub fn set_training_for_fields<T>(
-            fields: &mut [(&str, &mut T)],
-            training: bool,
-        )
+        pub fn set_training_for_fields<T>(fields: &mut [(&str, &mut T)], training: bool)
         where
             T: crate::nn::phoenix::PhoenixModule,
         {
@@ -89,9 +86,7 @@ mod phoenix_derive_impl {
         }
 
         /// Zero gradients for nested fields
-        pub fn zero_grad_for_fields<T>(
-            fields: &mut [(&str, &mut T)],
-        )
+        pub fn zero_grad_for_fields<T>(fields: &mut [(&str, &mut T)])
         where
             T: crate::nn::phoenix::PhoenixModule,
         {
@@ -101,9 +96,7 @@ mod phoenix_derive_impl {
         }
 
         /// Get consistent device from nested fields
-        pub fn get_device_from_fields<T>(
-            fields: &[(&str, &T)],
-        ) -> Option<crate::Device>
+        pub fn get_device_from_fields<T>(fields: &[(&str, &T)]) -> Option<crate::Device>
         where
             T: crate::nn::phoenix::PhoenixModule,
         {
@@ -120,10 +113,7 @@ mod phoenix_derive_impl {
         }
 
         /// Check if all fields are in training mode
-        pub fn is_training_from_fields<T>(
-            fields: &[(&str, &T)],
-            default_training: bool,
-        ) -> bool
+        pub fn is_training_from_fields<T>(fields: &[(&str, &T)], default_training: bool) -> bool
         where
             T: crate::nn::phoenix::PhoenixModule,
         {
@@ -400,20 +390,19 @@ mod phoenix_derive_impl {
         }
 
         // Use the composite macro for nested modules
-        impl_phoenix_module!(TestMLP {
-            fc1: TestLinear,
-            fc2: TestLinear,
-        });
+        impl_phoenix_module!(TestMLP { fc1: TestLinear, fc2: TestLinear });
 
         #[test]
         fn test_manual_derive_macro() {
-            use crate::{Kind, Device, Tensor};
+            use crate::{Device, Kind, Tensor};
 
-            let weight1 = Tensor::randn(&[128, 784], (Kind::Float, Device::Cpu)).set_requires_grad(true);
+            let weight1 =
+                Tensor::randn(&[128, 784], (Kind::Float, Device::Cpu)).set_requires_grad(true);
             let bias1 = Tensor::randn(&[128], (Kind::Float, Device::Cpu)).set_requires_grad(true);
             let fc1 = TestLinear { weight: weight1, bias: bias1, training: true };
 
-            let weight2 = Tensor::randn(&[10, 128], (Kind::Float, Device::Cpu)).set_requires_grad(true);
+            let weight2 =
+                Tensor::randn(&[10, 128], (Kind::Float, Device::Cpu)).set_requires_grad(true);
             let bias2 = Tensor::randn(&[10], (Kind::Float, Device::Cpu)).set_requires_grad(true);
             let fc2 = TestLinear { weight: weight2, bias: bias2, training: true };
 

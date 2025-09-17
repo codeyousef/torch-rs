@@ -4,8 +4,8 @@
 
 #[cfg(feature = "torch-rs")]
 use tch::{
-    nn::phoenix::{PhoenixModule, Linear},
-    optim::phoenix::{SGD, PhoenixOptimizer},
+    nn::phoenix::{Linear, PhoenixModule},
+    optim::phoenix::{PhoenixOptimizer, SGD},
     Device, Kind, Tensor,
 };
 
@@ -118,11 +118,7 @@ impl tch::nn::Module for SimpleMLP {
 
 // Use the manual derive macro implementation
 #[cfg(feature = "torch-rs")]
-tch::impl_phoenix_module!(SimpleMLP {
-    fc1: Linear,
-    fc2: Linear,
-    fc3: Linear,
-});
+tch::impl_phoenix_module!(SimpleMLP { fc1: Linear, fc2: Linear, fc3: Linear });
 
 #[cfg(not(feature = "torch-rs"))]
 fn main() {

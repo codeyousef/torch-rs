@@ -2,7 +2,7 @@
 //!
 //! RMSprop uses an exponential moving average of squared gradients to normalize gradients
 
-use crate::optim::{PhoenixOptimizer, OptimizerError, ParameterGroup};
+use crate::optim::{OptimizerError, ParameterGroup, PhoenixOptimizer};
 use crate::Tensor;
 use std::collections::HashMap;
 
@@ -53,11 +53,7 @@ impl RMSprop {
     {
         let parameter_groups = vec![ParameterGroup::new(params.into_iter().collect())];
 
-        Ok(Self {
-            parameter_groups,
-            state: HashMap::new(),
-            defaults: config,
-        })
+        Ok(Self { parameter_groups, state: HashMap::new(), defaults: config })
     }
 
     pub fn new_with_defaults<I>(params: I) -> Result<Self, OptimizerError>
@@ -106,7 +102,8 @@ impl RMSprop {
     }
 
     fn get_centered(&self, group: &ParameterGroup) -> bool {
-        let value: f64 = group.get_option("centered")
+        let value: f64 = group
+            .get_option("centered")
             .unwrap_or((if self.defaults.centered { 1.0 } else { 0.0 }).into())
             .into();
         value > 0.5
@@ -135,21 +132,15 @@ impl PhoenixOptimizer for RMSprop {
                         grad.shallow_clone()
                     };
 
-                    let state = self.state.entry(param_id).or_insert_with(|| {
-                        RMSpropState {
-                            step: 0,
-                            square_avg: Tensor::zeros_like(&param),
-                            momentum_buffer: if momentum > 0.0 {
-                                Some(Tensor::zeros_like(&param))
-                            } else {
-                                None
-                            },
-                            grad_avg: if centered {
-                                Some(Tensor::zeros_like(&param))
-                            } else {
-                                None
-                            },
-                        }
+                    let state = self.state.entry(param_id).or_insert_with(|| RMSpropState {
+                        step: 0,
+                        square_avg: Tensor::zeros_like(&param),
+                        momentum_buffer: if momentum > 0.0 {
+                            Some(Tensor::zeros_like(&param))
+                        } else {
+                            None
+                        },
+                        grad_avg: if centered { Some(Tensor::zeros_like(&param)) } else { None },
                     });
 
                     state.step += 1;
@@ -200,32 +191,41 @@ impl PhoenixOptimizer for RMSprop {
         state_dict.insert("lr".to_string(), OptimizerValue::Float(self.defaults.lr));
         state_dict.insert("alpha".to_string(), OptimizerValue::Float(self.defaults.alpha));
         state_dict.insert("eps".to_string(), OptimizerValue::Float(self.defaults.eps));
-        state_dict.insert("weight_decay".to_string(), OptimizerValue::Float(self.defaults.weight_decay));
+        state_dict
+            .insert("weight_decay".to_string(), OptimizerValue::Float(self.defaults.weight_decay));
         state_dict.insert("momentum".to_string(), OptimizerValue::Float(self.defaults.momentum));
         state_dict.insert("centered".to_string(), OptimizerValue::Bool(self.defaults.centered));
 
         for (param_id, state) in &self.state {
             let prefix = format!("state.{}", param_id);
             state_dict.insert(format!("{}.step", prefix), OptimizerValue::Int(state.step));
-            state_dict.insert(format!("{}.square_avg", prefix),
-                OptimizerValue::Tensor(state.square_avg.shallow_clone()));
+            state_dict.insert(
+                format!("{}.square_avg", prefix),
+                OptimizerValue::Tensor(state.square_avg.shallow_clone()),
+            );
 
             if let Some(ref momentum_buffer) = state.momentum_buffer {
-                state_dict.insert(format!("{}.momentum_buffer", prefix),
-                    OptimizerValue::Tensor(momentum_buffer.shallow_clone()));
+                state_dict.insert(
+                    format!("{}.momentum_buffer", prefix),
+                    OptimizerValue::Tensor(momentum_buffer.shallow_clone()),
+                );
             }
 
             if let Some(ref grad_avg) = state.grad_avg {
-                state_dict.insert(format!("{}.grad_avg", prefix),
-                    OptimizerValue::Tensor(grad_avg.shallow_clone()));
+                state_dict.insert(
+                    format!("{}.grad_avg", prefix),
+                    OptimizerValue::Tensor(grad_avg.shallow_clone()),
+                );
             }
         }
 
         state_dict
     }
 
-    fn load_state_dict(&mut self, state_dict: &HashMap<String, crate::nn::OptimizerValue>)
-        -> Result<(), OptimizerError> {
+    fn load_state_dict(
+        &mut self,
+        state_dict: &HashMap<String, crate::nn::OptimizerValue>,
+    ) -> Result<(), OptimizerError> {
         use crate::nn::OptimizerValue;
 
         if let Some(OptimizerValue::Float(lr)) = state_dict.get("lr") {
@@ -254,17 +254,22 @@ impl PhoenixOptimizer for RMSprop {
         for (key, value) in state_dict {
             if let Some(state_key) = key.strip_prefix("state.") {
                 if let Some(dot_pos) = state_key.find('.') {
-                    let param_id: usize = state_key[..dot_pos].parse()
-                        .map_err(|_| OptimizerError::StateIncompatible { reason: "Invalid parameter ID".to_string() })?;
+                    let param_id: usize = state_key[..dot_pos].parse().map_err(|_| {
+                        OptimizerError::StateIncompatible {
+                            reason: "Invalid parameter ID".to_string(),
+                        }
+                    })?;
                     let field = &state_key[dot_pos + 1..];
 
-                    let state = param_states.entry(param_id).or_insert_with(|| {
-                        RMSpropState {
-                            step: 0,
-                            square_avg: Tensor::new(),
-                            momentum_buffer: if self.defaults.momentum > 0.0 { Some(Tensor::new()) } else { None },
-                            grad_avg: if self.defaults.centered { Some(Tensor::new()) } else { None },
-                        }
+                    let state = param_states.entry(param_id).or_insert_with(|| RMSpropState {
+                        step: 0,
+                        square_avg: Tensor::new(),
+                        momentum_buffer: if self.defaults.momentum > 0.0 {
+                            Some(Tensor::new())
+                        } else {
+                            None
+                        },
+                        grad_avg: if self.defaults.centered { Some(Tensor::new()) } else { None },
                     });
 
                     match (field, value) {

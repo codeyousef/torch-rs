@@ -37,13 +37,12 @@ pub mod test_utils;
 
 // Project Phoenix modules (feature-gated)
 #[cfg(feature = "torch-rs")]
-pub mod torch_data;
-#[cfg(feature = "torch-rs")]
 pub mod optim;
 #[cfg(feature = "torch-rs")]
+pub mod torch_data;
+#[cfg(feature = "torch-rs")]
 pub use torch_data::{
-    Dataset, VisionDataset, Transform, DatasetError, TransformError,
-    DataLoader, DataLoaderConfig, MnistDataset, Cifar10Dataset,
-    CollateFunction, DefaultCollateFunction,
-    RandomSampler, SequentialSampler, BatchSampler,
+    BatchSampler, Cifar10Dataset, CollateFunction, DataLoader, DataLoaderConfig, Dataset,
+    DatasetError, DefaultCollateFunction, MnistDataset, RandomSampler, SequentialSampler,
+    Transform, TransformError, VisionDataset,
 };

@@ -9,10 +9,7 @@ pub struct E2ETestHarness {
 
 impl E2ETestHarness {
     pub fn new() -> Self {
-        Self {
-            deterministic: false,
-            memory_limit: None,
-        }
+        Self { deterministic: false, memory_limit: None }
     }
 
     pub fn with_deterministic_seed(mut self, _seed: u64) -> Self {
@@ -86,11 +83,7 @@ pub struct TrainerBuilder {
 
 impl TrainerBuilder {
     fn new() -> Self {
-        Self {
-            epochs: 5,
-            batch_size: 32,
-            learning_rate: 0.001,
-        }
+        Self { epochs: 5, batch_size: 32, learning_rate: 0.001 }
     }
 
     pub fn epochs(mut self, epochs: usize) -> Self {
@@ -108,12 +101,12 @@ impl TrainerBuilder {
         self
     }
 
-    pub fn fit(&self, _model: TestModel, _dataset: TestDataset) -> Result<Metrics, Box<dyn std::error::Error>> {
-        Ok(Metrics {
-            final_accuracy: 0.96,
-            final_loss: 0.08,
-            training_time_ms: 15000,
-        })
+    pub fn fit(
+        &self,
+        _model: TestModel,
+        _dataset: TestDataset,
+    ) -> Result<Metrics, Box<dyn std::error::Error>> {
+        Ok(Metrics { final_accuracy: 0.96, final_loss: 0.08, training_time_ms: 15000 })
     }
 }
 

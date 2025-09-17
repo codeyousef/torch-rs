@@ -4,8 +4,8 @@
 
 #[cfg(feature = "torch-rs")]
 pub mod linear {
-    use crate::{Device, Kind, Tensor, nn::phoenix::PhoenixModule, nn::Module};
     use crate::nn::phoenix::PhoenixModuleError;
+    use crate::{nn::phoenix::PhoenixModule, nn::Module, Device, Kind, Tensor};
     use std::collections::HashMap;
 
     /// Phoenix Linear Layer
@@ -72,22 +72,20 @@ pub mod linear {
                 None
             };
 
-            Self {
-                weight,
-                bias: bias_tensor,
-                in_features,
-                out_features,
-                training: true,
-            }
+            Self { weight, bias: bias_tensor, in_features, out_features, training: true }
         }
 
         /// Create Linear layer from existing tensors
-        pub fn from_tensors(weight: Tensor, bias: Option<Tensor>) -> Result<Self, PhoenixModuleError> {
+        pub fn from_tensors(
+            weight: Tensor,
+            bias: Option<Tensor>,
+        ) -> Result<Self, PhoenixModuleError> {
             let weight_shape = weight.size();
             if weight_shape.len() != 2 {
-                return Err(PhoenixModuleError::InvalidConfiguration(
-                    format!("Weight must be 2D, got shape: {:?}", weight_shape)
-                ));
+                return Err(PhoenixModuleError::InvalidConfiguration(format!(
+                    "Weight must be 2D, got shape: {:?}",
+                    weight_shape
+                )));
             }
 
             let out_features = weight_shape[0];
@@ -96,19 +94,14 @@ pub mod linear {
             if let Some(ref bias_tensor) = bias {
                 let bias_shape = bias_tensor.size();
                 if bias_shape.len() != 1 || bias_shape[0] != out_features {
-                    return Err(PhoenixModuleError::InvalidConfiguration(
-                        format!("Bias must have shape [{}], got {:?}", out_features, bias_shape)
-                    ));
+                    return Err(PhoenixModuleError::InvalidConfiguration(format!(
+                        "Bias must have shape [{}], got {:?}",
+                        out_features, bias_shape
+                    )));
                 }
             }
 
-            Ok(Self {
-                weight,
-                bias,
-                in_features,
-                out_features,
-                training: true,
-            })
+            Ok(Self { weight, bias, in_features, out_features, training: true })
         }
 
         /// Reset parameters using Xavier uniform initialization
@@ -126,9 +119,10 @@ pub mod linear {
             if let Some(ref bias_tensor) = bias {
                 let bias_shape = bias_tensor.size();
                 if bias_shape.len() != 1 || bias_shape[0] != self.out_features {
-                    return Err(PhoenixModuleError::InvalidConfiguration(
-                        format!("Bias must have shape [{}], got {:?}", self.out_features, bias_shape)
-                    ));
+                    return Err(PhoenixModuleError::InvalidConfiguration(format!(
+                        "Bias must have shape [{}], got {:?}",
+                        self.out_features, bias_shape
+                    )));
                 }
             }
             self.bias = bias;
@@ -157,8 +151,10 @@ pub mod linear {
 
             // Validate input dimensions
             if input_shape.is_empty() || input_shape[input_shape.len() - 1] != self.in_features {
-                panic!("Input size mismatch: expected last dimension to be {}, got {:?}",
-                       self.in_features, input_shape);
+                panic!(
+                    "Input size mismatch: expected last dimension to be {}, got {:?}",
+                    self.in_features, input_shape
+                );
             }
 
             // Compute linear transformation: y = xW^T + b
@@ -262,13 +258,7 @@ pub mod linear {
 
     impl LinearBuilder {
         pub fn new(in_features: i64, out_features: i64) -> Self {
-            Self {
-                in_features,
-                out_features,
-                bias: true,
-                device: Device::Cpu,
-                dtype: Kind::Float,
-            }
+            Self { in_features, out_features, bias: true, device: Device::Cpu, dtype: Kind::Float }
         }
 
         pub fn bias(mut self, bias: bool) -> Self {
@@ -287,8 +277,9 @@ pub mod linear {
         }
 
         pub fn build(self) -> Linear {
-            let weight = Tensor::empty(&[self.out_features, self.in_features], (self.dtype, self.device))
-                .set_requires_grad(true);
+            let weight =
+                Tensor::empty(&[self.out_features, self.in_features], (self.dtype, self.device))
+                    .set_requires_grad(true);
 
             let bound = (6.0 / (self.in_features + self.out_features) as f64).sqrt();
             let _ = weight.uniform_(-bound, bound);
@@ -315,7 +306,7 @@ pub mod linear {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::{Kind, Device, Tensor};
+        use crate::{Device, Kind, Tensor};
 
         #[test]
         fn test_linear_creation() {

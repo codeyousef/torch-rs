@@ -187,10 +187,7 @@ pub mod dataset {
 
     impl<'a, D: Dataset> DatasetIterator<'a, D> {
         fn new(dataset: &'a D) -> Self {
-            Self {
-                dataset,
-                current: 0,
-            }
+            Self { dataset, current: 0 }
         }
     }
 
@@ -217,11 +214,7 @@ pub mod dataset {
 
     impl<'a, D: Dataset> BatchIterator<'a, D> {
         fn new(dataset: &'a D, batch_size: usize) -> Self {
-            Self {
-                dataset,
-                batch_size,
-                current: 0,
-            }
+            Self { dataset, batch_size, current: 0 }
         }
     }
 
@@ -269,10 +262,7 @@ pub mod dataset {
 
         fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
             if index >= self.indices.len() {
-                return Err(DatasetError::IndexOutOfBounds {
-                    index,
-                    size: self.indices.len(),
-                });
+                return Err(DatasetError::IndexOutOfBounds { index, size: self.indices.len() });
             }
             let actual_index = self.indices[index];
             self.dataset.get(actual_index)
@@ -397,9 +387,16 @@ pub mod dataset {
         /// Standard CIFAR-10 class names
         fn class_names(&self) -> Option<Vec<String>> {
             Some(vec![
-                "airplane".to_string(), "automobile".to_string(), "bird".to_string(),
-                "cat".to_string(), "deer".to_string(), "dog".to_string(),
-                "frog".to_string(), "horse".to_string(), "ship".to_string(), "truck".to_string(),
+                "airplane".to_string(),
+                "automobile".to_string(),
+                "bird".to_string(),
+                "cat".to_string(),
+                "deer".to_string(),
+                "dog".to_string(),
+                "frog".to_string(),
+                "horse".to_string(),
+                "ship".to_string(),
+                "truck".to_string(),
             ])
         }
 
@@ -469,8 +466,7 @@ pub mod dataset {
 
         /// Create directory if it doesn't exist
         pub fn ensure_dir<P: AsRef<Path>>(path: P) -> Result<(), DatasetError> {
-            std::fs::create_dir_all(path)
-                .map_err(|e| DatasetError::DownloadFailed { source: e })
+            std::fs::create_dir_all(path).map_err(|e| DatasetError::DownloadFailed { source: e })
         }
     }
 
@@ -488,15 +484,9 @@ pub mod dataset {
 
         impl MockDataset {
             fn new(size: usize, root: PathBuf) -> Self {
-                let data = (0..size)
-                    .map(|i| (i as i32, format!("item_{}", i)))
-                    .collect();
+                let data = (0..size).map(|i| (i as i32, format!("item_{}", i))).collect();
 
-                Self {
-                    data,
-                    root,
-                    downloaded: true,
-                }
+                Self { data, root, downloaded: true }
             }
         }
 
@@ -509,10 +499,7 @@ pub mod dataset {
 
             fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
                 if index >= self.len() {
-                    Err(DatasetError::IndexOutOfBounds {
-                        index,
-                        size: self.len(),
-                    })
+                    Err(DatasetError::IndexOutOfBounds { index, size: self.len() })
                 } else {
                     Ok(self.data[index].clone())
                 }

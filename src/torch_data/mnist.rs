@@ -2,11 +2,11 @@
 //!
 //! Provides MNIST handwritten digit classification dataset with automatic downloads
 
-use super::dataset::{Dataset, VisionDataset, DatasetError, DatasetMetadata, utils};
+use super::dataset::{utils, Dataset, DatasetError, DatasetMetadata, VisionDataset};
 use crate::{Device, Kind, Tensor};
-use std::path::{Path, PathBuf};
 use std::fs::File;
 use std::io::Read;
+use std::path::{Path, PathBuf};
 
 const MNIST_URLS: &[(&str, &str)] = &[
     ("train-images-idx3-ubyte.gz", "http://yann.lecun.com/exdb/mnist/train-images-idx3-ubyte.gz"),
@@ -26,7 +26,11 @@ pub struct MnistDataset {
 }
 
 impl MnistDataset {
-    pub fn new<P: Into<PathBuf>>(root: P, train: bool, download: bool) -> Result<Self, DatasetError> {
+    pub fn new<P: Into<PathBuf>>(
+        root: P,
+        train: bool,
+        download: bool,
+    ) -> Result<Self, DatasetError> {
         let root = root.into();
         let mut dataset = Self {
             root,
@@ -45,7 +49,10 @@ impl MnistDataset {
         Ok(dataset)
     }
 
-    pub fn with_transforms(mut self, transforms: Vec<Box<dyn crate::torch_data::Transform>>) -> Self {
+    pub fn with_transforms(
+        mut self,
+        transforms: Vec<Box<dyn crate::torch_data::Transform>>,
+    ) -> Self {
         self.transforms = transforms;
         self
     }
@@ -116,14 +123,18 @@ impl MnistDataset {
         let expected_size = (16 + num_images * 28 * 28) as usize;
         if buffer.len() != expected_size {
             return Err(DatasetError::CorruptedData {
-                reason: format!("File size mismatch: expected {}, got {}", expected_size, buffer.len()),
+                reason: format!(
+                    "File size mismatch: expected {}, got {}",
+                    expected_size,
+                    buffer.len()
+                ),
             });
         }
 
         let image_data = &buffer[16..];
-        let tensor = Tensor::from_slice(image_data)
-            .reshape(&[num_images, 28, 28])
-            .to_kind(Kind::Float) / 255.0;
+        let tensor =
+            Tensor::from_slice(image_data).reshape(&[num_images, 28, 28]).to_kind(Kind::Float)
+                / 255.0;
 
         Ok(tensor)
     }
@@ -151,18 +162,24 @@ impl MnistDataset {
         let expected_size = (8 + num_labels) as usize;
         if buffer.len() != expected_size {
             return Err(DatasetError::CorruptedData {
-                reason: format!("File size mismatch: expected {}, got {}", expected_size, buffer.len()),
+                reason: format!(
+                    "File size mismatch: expected {}, got {}",
+                    expected_size,
+                    buffer.len()
+                ),
             });
         }
 
         let label_data = &buffer[8..];
-        let tensor = Tensor::from_slice(label_data)
-            .to_kind(Kind::Int64);
+        let tensor = Tensor::from_slice(label_data).to_kind(Kind::Int64);
 
         Ok(tensor)
     }
 
-    fn extract_gz<P: AsRef<Path>, Q: AsRef<Path>>(gz_path: P, output_path: Q) -> Result<(), DatasetError> {
+    fn extract_gz<P: AsRef<Path>, Q: AsRef<Path>>(
+        gz_path: P,
+        output_path: Q,
+    ) -> Result<(), DatasetError> {
         use std::io::Write;
 
         let file = File::open(&gz_path)?;
@@ -183,33 +200,33 @@ impl Dataset for MnistDataset {
     fn len(&self) -> usize {
         match &self.images {
             Some(images) => images.size()[0] as usize,
-            None => if self.train { 60000 } else { 10000 },
+            None => {
+                if self.train {
+                    60000
+                } else {
+                    10000
+                }
+            }
         }
     }
 
     fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
-        let images = self.images.as_ref()
-            .ok_or_else(|| DatasetError::NotDownloaded {
-                reason: "Images not loaded".to_string(),
-            })?;
+        let images = self.images.as_ref().ok_or_else(|| DatasetError::NotDownloaded {
+            reason: "Images not loaded".to_string(),
+        })?;
 
-        let labels = self.labels.as_ref()
-            .ok_or_else(|| DatasetError::NotDownloaded {
-                reason: "Labels not loaded".to_string(),
-            })?;
+        let labels = self.labels.as_ref().ok_or_else(|| DatasetError::NotDownloaded {
+            reason: "Labels not loaded".to_string(),
+        })?;
 
         if index >= self.len() {
-            return Err(DatasetError::IndexOutOfBounds {
-                index,
-                size: self.len(),
-            });
+            return Err(DatasetError::IndexOutOfBounds { index, size: self.len() });
         }
 
         let mut image = images.get(index as i64);
-        let label = i64::try_from(labels.get(index as i64))
-            .map_err(|_| DatasetError::CorruptedData {
-                reason: "Failed to extract label".to_string(),
-            })?;
+        let label = i64::try_from(labels.get(index as i64)).map_err(|_| {
+            DatasetError::CorruptedData { reason: "Failed to extract label".to_string() }
+        })?;
 
         for transform in &self.transforms {
             image = transform.apply(image)?;
@@ -220,9 +237,7 @@ impl Dataset for MnistDataset {
 
     fn download(&self) -> Result<(), DatasetError> {
         if !self.download_enabled {
-            return Err(DatasetError::ConfigError {
-                reason: "Download not enabled".to_string(),
-            });
+            return Err(DatasetError::ConfigError { reason: "Download not enabled".to_string() });
         }
 
         let raw_folder = self.raw_folder();
@@ -259,9 +274,7 @@ impl Dataset for MnistDataset {
             vec!["t10k-images-idx3-ubyte", "t10k-labels-idx1-ubyte"]
         };
 
-        required_files.iter().all(|filename| {
-            raw_folder.join(filename).exists()
-        })
+        required_files.iter().all(|filename| raw_folder.join(filename).exists())
     }
 
     fn root(&self) -> &PathBuf {
@@ -274,7 +287,9 @@ impl Dataset for MnistDataset {
             version: "1.0.0".to_string(),
             description: "The MNIST database of handwritten digits".to_string(),
             url: Some("http://yann.lecun.com/exdb/mnist/".to_string()),
-            citation: Some("LeCun, Y. (1998). The MNIST database of handwritten digits".to_string()),
+            citation: Some(
+                "LeCun, Y. (1998). The MNIST database of handwritten digits".to_string(),
+            ),
             license: Some("Public Domain".to_string()),
             size_bytes: Some(11_000_000),
             checksum: None,
@@ -330,7 +345,7 @@ mod tests {
         let result = MnistDataset::new(&temp_dir, true, false);
         match result {
             Ok(_) => panic!("Should fail when data is not available"),
-            Err(DatasetError::NotDownloaded { .. }) => {},
+            Err(DatasetError::NotDownloaded { .. }) => {}
             Err(e) => panic!("Unexpected error: {:?}", e),
         }
     }

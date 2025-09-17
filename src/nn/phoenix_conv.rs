@@ -4,8 +4,8 @@
 
 #[cfg(feature = "torch-rs")]
 pub mod conv2d {
-    use crate::{Device, Kind, Tensor, nn::phoenix::PhoenixModule, nn::Module};
     use crate::nn::phoenix::PhoenixModuleError;
+    use crate::{nn::phoenix::PhoenixModule, nn::Module, Device, Kind, Tensor};
     use std::collections::HashMap;
 
     /// Phoenix Conv2d Layer
@@ -87,8 +87,8 @@ pub mod conv2d {
             assert!(out_channels % groups == 0, "out_channels must be divisible by groups");
 
             let weight_shape = [out_channels, in_channels / groups, kernel_size.0, kernel_size.1];
-            let weight = Tensor::empty(&weight_shape, (Kind::Float, Device::Cpu))
-                .set_requires_grad(true);
+            let weight =
+                Tensor::empty(&weight_shape, (Kind::Float, Device::Cpu)).set_requires_grad(true);
 
             // Initialize with Kaiming uniform (He initialization)
             let fan_in = (in_channels / groups) * kernel_size.0 * kernel_size.1;
@@ -167,8 +167,10 @@ pub mod conv2d {
 
             let input_channels = input_shape[1];
             if input_channels != self.in_channels {
-                panic!("Input channels mismatch: expected {}, got {}",
-                       self.in_channels, input_channels);
+                panic!(
+                    "Input channels mismatch: expected {}, got {}",
+                    self.in_channels, input_channels
+                );
             }
 
             // Perform 2D convolution
@@ -372,14 +374,9 @@ pub mod conv2d {
                 .groups(in_channels)
                 .build();
 
-            let pointwise = Conv2dBuilder::new(in_channels, out_channels, 1)
-                .build();
+            let pointwise = Conv2dBuilder::new(in_channels, out_channels, 1).build();
 
-            Self {
-                depthwise,
-                pointwise,
-                training: true,
-            }
+            Self { depthwise, pointwise, training: true }
         }
     }
 
@@ -390,15 +387,12 @@ pub mod conv2d {
         }
     }
 
-    crate::impl_phoenix_module!(DepthwiseSeparableConv2d {
-        depthwise: Conv2d,
-        pointwise: Conv2d,
-    });
+    crate::impl_phoenix_module!(DepthwiseSeparableConv2d { depthwise: Conv2d, pointwise: Conv2d });
 
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::{Kind, Device, Tensor};
+        use crate::{Device, Kind, Tensor};
 
         #[test]
         fn test_conv2d_creation() {
@@ -424,9 +418,7 @@ pub mod conv2d {
 
         #[test]
         fn test_conv2d_with_padding() {
-            let conv = Conv2dBuilder::new(3, 64, 3)
-                .same_padding()
-                .build();
+            let conv = Conv2dBuilder::new(3, 64, 3).same_padding().build();
 
             let input = Tensor::randn(&[1, 3, 32, 32], (Kind::Float, Device::Cpu));
             let output = conv.forward(&input);
@@ -435,9 +427,7 @@ pub mod conv2d {
 
         #[test]
         fn test_conv2d_with_stride() {
-            let conv = Conv2dBuilder::new(3, 64, 3)
-                .stride((2, 2))
-                .build();
+            let conv = Conv2dBuilder::new(3, 64, 3).stride((2, 2)).build();
 
             let input = Tensor::randn(&[1, 3, 32, 32], (Kind::Float, Device::Cpu));
             let output = conv.forward(&input);
@@ -450,18 +440,14 @@ pub mod conv2d {
             let output_size = conv.output_size((32, 32));
             assert_eq!(output_size, (30, 30));
 
-            let conv_with_padding = Conv2dBuilder::new(3, 64, 3)
-                .padding((1, 1))
-                .build();
+            let conv_with_padding = Conv2dBuilder::new(3, 64, 3).padding((1, 1)).build();
             let output_size = conv_with_padding.output_size((32, 32));
             assert_eq!(output_size, (32, 32));
         }
 
         #[test]
         fn test_grouped_convolution() {
-            let conv = Conv2dBuilder::new(8, 16, 3)
-                .groups(2)
-                .build();
+            let conv = Conv2dBuilder::new(8, 16, 3).groups(2).build();
 
             assert_eq!(conv.groups, 2);
             assert_eq!(conv.weight.size(), &[16, 4, 3, 3]); // 8/2 = 4 channels per group
@@ -535,9 +521,7 @@ pub mod conv2d {
             let conv = Conv2d::new(3, 64, 3);
             assert_eq!(conv.receptive_field(), (3, 3));
 
-            let conv_dilated = Conv2dBuilder::new(3, 64, 3)
-                .dilation((2, 2))
-                .build();
+            let conv_dilated = Conv2dBuilder::new(3, 64, 3).dilation((2, 2)).build();
             assert_eq!(conv_dilated.receptive_field(), (5, 5)); // 2*(3-1)+1 = 5
         }
 

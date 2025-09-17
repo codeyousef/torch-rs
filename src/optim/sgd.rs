@@ -2,7 +2,7 @@
 
 #[cfg(feature = "torch-rs")]
 pub mod sgd {
-    use crate::optim::{PhoenixOptimizer, OptimizerError, ParameterGroup, utils, SGDOptimizer};
+    use crate::optim::{utils, OptimizerError, ParameterGroup, PhoenixOptimizer, SGDOptimizer};
     use crate::Tensor;
     use std::collections::HashMap;
 
@@ -46,7 +46,8 @@ pub mod sgd {
                 return Err(OptimizerError::NoParameters);
             }
 
-            let param_ptrs: Vec<*mut Tensor> = parameters.into_iter().map(|p| p as *mut _).collect();
+            let param_ptrs: Vec<*mut Tensor> =
+                parameters.into_iter().map(|p| p as *mut _).collect();
             let group = ParameterGroup::new(param_ptrs, lr);
             utils::validate_parameter_group(&group, 0)?;
 
@@ -67,19 +68,16 @@ pub mod sgd {
                 utils::validate_parameter_group(group, i)?;
             }
 
-            Ok(Self {
-                parameter_groups: groups,
-                momentum_buffers: HashMap::new(),
-                step_count: 0,
-            })
+            Ok(Self { parameter_groups: groups, momentum_buffers: HashMap::new(), step_count: 0 })
         }
 
         /// Set momentum for all parameter groups
         pub fn set_momentum_all(&mut self, momentum: f64) -> Result<(), OptimizerError> {
             if momentum < 0.0 || momentum >= 1.0 {
-                return Err(OptimizerError::InvalidParameter(
-                    format!("Momentum must be in [0, 1), got: {}", momentum)
-                ));
+                return Err(OptimizerError::InvalidParameter(format!(
+                    "Momentum must be in [0, 1), got: {}",
+                    momentum
+                )));
             }
 
             for group in &mut self.parameter_groups {
@@ -91,9 +89,10 @@ pub mod sgd {
         /// Set weight decay for all parameter groups
         pub fn set_weight_decay_all(&mut self, weight_decay: f64) -> Result<(), OptimizerError> {
             if weight_decay < 0.0 {
-                return Err(OptimizerError::InvalidParameter(
-                    format!("Weight decay must be non-negative, got: {}", weight_decay)
-                ));
+                return Err(OptimizerError::InvalidParameter(format!(
+                    "Weight decay must be non-negative, got: {}",
+                    weight_decay
+                )));
             }
 
             for group in &mut self.parameter_groups {
@@ -139,9 +138,9 @@ pub mod sgd {
                     }
 
                     if momentum != 0.0 {
-                        let momentum_buffer = group_buffers.entry(param_id).or_insert_with(|| {
-                            Tensor::zeros_like(&grad)
-                        });
+                        let momentum_buffer = group_buffers
+                            .entry(param_id)
+                            .or_insert_with(|| Tensor::zeros_like(&grad));
 
                         // momentum_buffer = momentum * momentum_buffer + (1 - dampening) * grad
                         *momentum_buffer = &*momentum_buffer * momentum + &grad * (1.0 - dampening);
@@ -220,8 +219,10 @@ pub mod sgd {
             let mut state = HashMap::new();
 
             // Save basic optimizer state
-            state.insert("step_count".to_string(),
-                        Tensor::from(self.step_count as i64).to_kind(crate::Kind::Int64));
+            state.insert(
+                "step_count".to_string(),
+                Tensor::from(self.step_count as i64).to_kind(crate::Kind::Int64),
+            );
 
             // Save momentum buffers
             for (group_id, group_buffers) in &self.momentum_buffers {
@@ -233,31 +234,44 @@ pub mod sgd {
 
             // Save parameter group configurations
             for (i, group) in self.parameter_groups.iter().enumerate() {
-                state.insert(format!("group_{}_lr", i),
-                           Tensor::from(group.learning_rate).to_kind(crate::Kind::Float));
-                state.insert(format!("group_{}_weight_decay", i),
-                           Tensor::from(group.weight_decay).to_kind(crate::Kind::Float));
+                state.insert(
+                    format!("group_{}_lr", i),
+                    Tensor::from(group.learning_rate).to_kind(crate::Kind::Float),
+                );
+                state.insert(
+                    format!("group_{}_weight_decay", i),
+                    Tensor::from(group.weight_decay).to_kind(crate::Kind::Float),
+                );
 
                 if let Some(momentum) = group.momentum {
-                    state.insert(format!("group_{}_momentum", i),
-                               Tensor::from(momentum).to_kind(crate::Kind::Float));
+                    state.insert(
+                        format!("group_{}_momentum", i),
+                        Tensor::from(momentum).to_kind(crate::Kind::Float),
+                    );
                 }
 
                 if let Some(dampening) = group.dampening {
-                    state.insert(format!("group_{}_dampening", i),
-                               Tensor::from(dampening).to_kind(crate::Kind::Float));
+                    state.insert(
+                        format!("group_{}_dampening", i),
+                        Tensor::from(dampening).to_kind(crate::Kind::Float),
+                    );
                 }
 
                 if let Some(nesterov) = group.nesterov {
-                    state.insert(format!("group_{}_nesterov", i),
-                               Tensor::from(nesterov as i64).to_kind(crate::Kind::Int64));
+                    state.insert(
+                        format!("group_{}_nesterov", i),
+                        Tensor::from(nesterov as i64).to_kind(crate::Kind::Int64),
+                    );
                 }
             }
 
             state
         }
 
-        fn load_state_dict(&mut self, state_dict: HashMap<String, Tensor>) -> Result<(), OptimizerError> {
+        fn load_state_dict(
+            &mut self,
+            state_dict: HashMap<String, Tensor>,
+        ) -> Result<(), OptimizerError> {
             // Load step count
             if let Some(step_tensor) = state_dict.get("step_count") {
                 self.step_count = step_tensor.int64_value(&[]) as usize;
@@ -269,8 +283,11 @@ pub mod sgd {
                 if key.starts_with("momentum_buffer_") {
                     let parts: Vec<&str> = key.split('_').collect();
                     if parts.len() == 4 {
-                        if let (Ok(group_id), Ok(param_id)) = (parts[2].parse::<usize>(), parts[3].parse::<usize>()) {
-                            let group_buffers = self.momentum_buffers.entry(group_id).or_insert_with(HashMap::new);
+                        if let (Ok(group_id), Ok(param_id)) =
+                            (parts[2].parse::<usize>(), parts[3].parse::<usize>())
+                        {
+                            let group_buffers =
+                                self.momentum_buffers.entry(group_id).or_insert_with(HashMap::new);
                             group_buffers.insert(param_id, tensor.copy());
                         }
                     }
@@ -306,27 +323,19 @@ pub mod sgd {
 
     impl SGDOptimizer for SGD {
         fn momentum(&self) -> f64 {
-            self.parameter_groups.get(0)
-                .and_then(|g| g.momentum)
-                .unwrap_or(0.0)
+            self.parameter_groups.get(0).and_then(|g| g.momentum).unwrap_or(0.0)
         }
 
         fn dampening(&self) -> f64 {
-            self.parameter_groups.get(0)
-                .and_then(|g| g.dampening)
-                .unwrap_or(0.0)
+            self.parameter_groups.get(0).and_then(|g| g.dampening).unwrap_or(0.0)
         }
 
         fn weight_decay(&self) -> f64 {
-            self.parameter_groups.get(0)
-                .map(|g| g.weight_decay)
-                .unwrap_or(0.0)
+            self.parameter_groups.get(0).map(|g| g.weight_decay).unwrap_or(0.0)
         }
 
         fn nesterov(&self) -> bool {
-            self.parameter_groups.get(0)
-                .and_then(|g| g.nesterov)
-                .unwrap_or(false)
+            self.parameter_groups.get(0).and_then(|g| g.nesterov).unwrap_or(false)
         }
 
         fn set_momentum(&mut self, momentum: f64) -> Result<(), OptimizerError> {
@@ -339,9 +348,10 @@ pub mod sgd {
 
         fn set_dampening(&mut self, dampening: f64) -> Result<(), OptimizerError> {
             if dampening < 0.0 {
-                return Err(OptimizerError::InvalidParameter(
-                    format!("Dampening must be non-negative, got: {}", dampening)
-                ));
+                return Err(OptimizerError::InvalidParameter(format!(
+                    "Dampening must be non-negative, got: {}",
+                    dampening
+                )));
             }
 
             for group in &mut self.parameter_groups {
@@ -366,13 +376,7 @@ pub mod sgd {
 
     impl SGDBuilder {
         pub fn new(lr: f64) -> Self {
-            Self {
-                lr,
-                momentum: None,
-                weight_decay: 0.0,
-                dampening: 0.0,
-                nesterov: false,
-            }
+            Self { lr, momentum: None, weight_decay: 0.0, dampening: 0.0, nesterov: false }
         }
 
         pub fn momentum(mut self, momentum: f64) -> Self {
@@ -396,18 +400,16 @@ pub mod sgd {
         }
 
         pub fn build(self, parameters: Vec<&mut Tensor>) -> Result<SGD, OptimizerError> {
-            let param_ptrs: Vec<*mut Tensor> = parameters.into_iter().map(|p| p as *mut _).collect();
+            let param_ptrs: Vec<*mut Tensor> =
+                parameters.into_iter().map(|p| p as *mut _).collect();
 
             let group = ParameterGroup::new(param_ptrs, self.lr)
                 .weight_decay(self.weight_decay)
                 .dampening(self.dampening)
                 .nesterov(self.nesterov);
 
-            let group = if let Some(momentum) = self.momentum {
-                group.momentum(momentum)
-            } else {
-                group
-            };
+            let group =
+                if let Some(momentum) = self.momentum { group.momentum(momentum) } else { group };
 
             SGD::with_groups(vec![group])
         }
@@ -416,7 +418,7 @@ pub mod sgd {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::{Kind, Device, Tensor};
+        use crate::{Device, Kind, Tensor};
 
         fn create_test_parameters() -> Vec<Tensor> {
             vec![
@@ -527,10 +529,7 @@ pub mod sgd {
             let mut params = create_test_parameters();
             let param_refs: Vec<&mut Tensor> = params.iter_mut().collect();
 
-            let mut optimizer = SGDBuilder::new(0.01)
-                .momentum(0.9)
-                .build(param_refs)
-                .unwrap();
+            let mut optimizer = SGDBuilder::new(0.01).momentum(0.9).build(param_refs).unwrap();
 
             // Take a step to create momentum buffers
             for param in &params {

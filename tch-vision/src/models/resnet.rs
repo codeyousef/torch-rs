@@ -2,9 +2,9 @@
 //!
 //! Implements ResNet18, ResNet34, ResNet50, ResNet101, and ResNet152
 
-use tch::{nn, nn::Module, nn::ModuleT, Device, Kind, Tensor};
 use std::collections::HashMap;
 use std::path::Path;
+use tch::{nn, nn::Module, nn::ModuleT, Device, Kind, Tensor};
 
 /// Block types for ResNet architectures
 #[derive(Debug, Clone, Copy)]
@@ -23,134 +23,119 @@ struct ResNetConfig {
 
 impl ResNetConfig {
     fn resnet18() -> Self {
-        Self {
-            block: BlockType::Basic,
-            layers: [2, 2, 2, 2],
-            num_classes: 1000,
-        }
+        Self { block: BlockType::Basic, layers: [2, 2, 2, 2], num_classes: 1000 }
     }
 
     fn resnet34() -> Self {
-        Self {
-            block: BlockType::Basic,
-            layers: [3, 4, 6, 3],
-            num_classes: 1000,
-        }
+        Self { block: BlockType::Basic, layers: [3, 4, 6, 3], num_classes: 1000 }
     }
 
     fn resnet50() -> Self {
-        Self {
-            block: BlockType::Bottleneck,
-            layers: [3, 4, 6, 3],
-            num_classes: 1000,
-        }
+        Self { block: BlockType::Bottleneck, layers: [3, 4, 6, 3], num_classes: 1000 }
     }
 
     fn resnet101() -> Self {
-        Self {
-            block: BlockType::Bottleneck,
-            layers: [3, 4, 23, 3],
-            num_classes: 1000,
-        }
+        Self { block: BlockType::Bottleneck, layers: [3, 4, 23, 3], num_classes: 1000 }
     }
 
     fn resnet152() -> Self {
-        Self {
-            block: BlockType::Bottleneck,
-            layers: [3, 8, 36, 3],
-            num_classes: 1000,
-        }
+        Self { block: BlockType::Bottleneck, layers: [3, 8, 36, 3], num_classes: 1000 }
     }
 }
 
 /// Basic block for ResNet18 and ResNet34
 fn basic_block(p: &nn::Path, in_planes: i64, planes: i64, stride: i64) -> impl ModuleT {
-    let conv1 = nn::conv2d(p / "conv1", in_planes, planes, 3, nn::ConvConfig {
-        stride,
-        padding: 1,
-        bias: false,
-        ..Default::default()
-    });
+    let conv1 = nn::conv2d(
+        p / "conv1",
+        in_planes,
+        planes,
+        3,
+        nn::ConvConfig { stride, padding: 1, bias: false, ..Default::default() },
+    );
     let bn1 = nn::batch_norm2d(p / "bn1", planes, Default::default());
-    let conv2 = nn::conv2d(p / "conv2", planes, planes, 3, nn::ConvConfig {
-        padding: 1,
-        bias: false,
-        ..Default::default()
-    });
+    let conv2 = nn::conv2d(
+        p / "conv2",
+        planes,
+        planes,
+        3,
+        nn::ConvConfig { padding: 1, bias: false, ..Default::default() },
+    );
     let bn2 = nn::batch_norm2d(p / "bn2", planes, Default::default());
 
     let downsample = if stride != 1 || in_planes != planes {
-        let conv = nn::conv2d(p / "downsample" / "0", in_planes, planes, 1, nn::ConvConfig {
-            stride,
-            bias: false,
-            ..Default::default()
-        });
+        let conv = nn::conv2d(
+            p / "downsample" / "0",
+            in_planes,
+            planes,
+            1,
+            nn::ConvConfig { stride, bias: false, ..Default::default() },
+        );
         let bn = nn::batch_norm2d(p / "downsample" / "1", planes, Default::default());
-        Some(nn::seq_t()
-            .add(conv)
-            .add(bn))
+        Some(nn::seq_t().add(conv).add(bn))
     } else {
         None
     };
 
     nn::func_t(move |xs, train| {
-        let identity = if let Some(ref ds) = downsample {
-            xs.apply_t(ds, train)
-        } else {
-            xs.shallow_clone()
-        };
+        let identity =
+            if let Some(ref ds) = downsample { xs.apply_t(ds, train) } else { xs.shallow_clone() };
 
-        let out = xs
-            .apply(&conv1)
-            .apply_t(&bn1, train)
-            .relu()
-            .apply(&conv2)
-            .apply_t(&bn2, train);
+        let out = xs.apply(&conv1).apply_t(&bn1, train).relu().apply(&conv2).apply_t(&bn2, train);
 
         (out + identity).relu()
     })
 }
 
 /// Bottleneck block for ResNet50, ResNet101, and ResNet152
-fn bottleneck_block(p: &nn::Path, in_planes: i64, planes: i64, stride: i64, expansion: i64) -> impl ModuleT {
-    let conv1 = nn::conv2d(p / "conv1", in_planes, planes, 1, nn::ConvConfig {
-        bias: false,
-        ..Default::default()
-    });
+fn bottleneck_block(
+    p: &nn::Path,
+    in_planes: i64,
+    planes: i64,
+    stride: i64,
+    expansion: i64,
+) -> impl ModuleT {
+    let conv1 = nn::conv2d(
+        p / "conv1",
+        in_planes,
+        planes,
+        1,
+        nn::ConvConfig { bias: false, ..Default::default() },
+    );
     let bn1 = nn::batch_norm2d(p / "bn1", planes, Default::default());
-    let conv2 = nn::conv2d(p / "conv2", planes, planes, 3, nn::ConvConfig {
-        stride,
-        padding: 1,
-        bias: false,
-        ..Default::default()
-    });
+    let conv2 = nn::conv2d(
+        p / "conv2",
+        planes,
+        planes,
+        3,
+        nn::ConvConfig { stride, padding: 1, bias: false, ..Default::default() },
+    );
     let bn2 = nn::batch_norm2d(p / "bn2", planes, Default::default());
-    let conv3 = nn::conv2d(p / "conv3", planes, planes * expansion, 1, nn::ConvConfig {
-        bias: false,
-        ..Default::default()
-    });
+    let conv3 = nn::conv2d(
+        p / "conv3",
+        planes,
+        planes * expansion,
+        1,
+        nn::ConvConfig { bias: false, ..Default::default() },
+    );
     let bn3 = nn::batch_norm2d(p / "bn3", planes * expansion, Default::default());
 
     let downsample = if stride != 1 || in_planes != planes * expansion {
-        let conv = nn::conv2d(p / "downsample" / "0", in_planes, planes * expansion, 1, nn::ConvConfig {
-            stride,
-            bias: false,
-            ..Default::default()
-        });
+        let conv = nn::conv2d(
+            p / "downsample" / "0",
+            in_planes,
+            planes * expansion,
+            1,
+            nn::ConvConfig { stride, bias: false, ..Default::default() },
+        );
         let bn = nn::batch_norm2d(p / "downsample" / "1", planes * expansion, Default::default());
-        Some(nn::seq_t()
-            .add(conv)
-            .add(bn))
+        Some(nn::seq_t().add(conv).add(bn))
     } else {
         None
     };
 
     nn::func_t(move |xs, train| {
-        let identity = if let Some(ref ds) = downsample {
-            xs.apply_t(ds, train)
-        } else {
-            xs.shallow_clone()
-        };
+        let identity =
+            if let Some(ref ds) = downsample { xs.apply_t(ds, train) } else { xs.shallow_clone() };
 
         let out = xs
             .apply(&conv1)
@@ -185,30 +170,26 @@ impl ResNet {
             BlockType::Bottleneck => 4,
         };
 
-        let conv1 = nn::conv2d(vs / "conv1", 3, 64, 7, nn::ConvConfig {
-            stride: 2,
-            padding: 3,
-            bias: false,
-            ..Default::default()
-        });
+        let conv1 = nn::conv2d(
+            vs / "conv1",
+            3,
+            64,
+            7,
+            nn::ConvConfig { stride: 2, padding: 3, bias: false, ..Default::default() },
+        );
         let bn1 = nn::batch_norm2d(vs / "bn1", 64, Default::default());
 
         let layer1 = make_layer(vs / "layer1", config.block, 64, 64, config.layers[0], 1);
-        let layer2 = make_layer(vs / "layer2", config.block, 64 * expansion, 128, config.layers[1], 2);
-        let layer3 = make_layer(vs / "layer3", config.block, 128 * expansion, 256, config.layers[2], 2);
-        let layer4 = make_layer(vs / "layer4", config.block, 256 * expansion, 512, config.layers[3], 2);
+        let layer2 =
+            make_layer(vs / "layer2", config.block, 64 * expansion, 128, config.layers[1], 2);
+        let layer3 =
+            make_layer(vs / "layer3", config.block, 128 * expansion, 256, config.layers[2], 2);
+        let layer4 =
+            make_layer(vs / "layer4", config.block, 256 * expansion, 512, config.layers[3], 2);
 
         let fc = nn::linear(vs / "fc", 512 * expansion, config.num_classes, Default::default());
 
-        Self {
-            conv1,
-            bn1,
-            layer1,
-            layer2,
-            layer3,
-            layer4,
-            fc,
-        }
+        Self { conv1, bn1, layer1, layer2, layer3, layer4, fc }
     }
 
     /// Load pre-trained weights from a file
@@ -219,7 +200,10 @@ impl ResNet {
     }
 
     /// Download and load pre-trained weights
-    pub async fn download_pretrained(&mut self, model_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn download_pretrained(
+        &mut self,
+        model_name: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let url = match model_name {
             "resnet18" => "https://download.pytorch.org/models/resnet18-f37072fd.pth",
             "resnet34" => "https://download.pytorch.org/models/resnet34-b627a593.pth",
@@ -234,9 +218,9 @@ impl ResNet {
             .ok_or("Failed to find cache directory")?
             .join("tch-vision")
             .join("models");
-        
+
         std::fs::create_dir_all(&cache_dir)?;
-        
+
         let file_name = url.split('/').last().unwrap();
         let file_path = cache_dir.join(file_name);
 

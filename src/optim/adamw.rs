@@ -2,7 +2,7 @@
 //!
 //! AdamW differs from Adam by decoupling weight decay from gradient-based updates
 
-use crate::optim::{PhoenixOptimizer, OptimizerError, ParameterGroup};
+use crate::optim::{OptimizerError, ParameterGroup, PhoenixOptimizer};
 use crate::Tensor;
 use std::collections::HashMap;
 
@@ -51,11 +51,7 @@ impl AdamW {
     {
         let parameter_groups = vec![ParameterGroup::new(params.into_iter().collect())];
 
-        Ok(Self {
-            parameter_groups,
-            state: HashMap::new(),
-            defaults: config,
-        })
+        Ok(Self { parameter_groups, state: HashMap::new(), defaults: config })
     }
 
     pub fn new_with_defaults<I>(params: I) -> Result<Self, OptimizerError>
@@ -115,7 +111,8 @@ impl AdamW {
     }
 
     fn get_amsgrad(&self, group: &ParameterGroup) -> bool {
-        let value: f64 = group.get_option("amsgrad")
+        let value: f64 = group
+            .get_option("amsgrad")
             .unwrap_or((if self.defaults.amsgrad { 1.0 } else { 0.0 }).into())
             .into();
         value > 0.5
@@ -137,17 +134,15 @@ impl PhoenixOptimizer for AdamW {
 
                 let grad = param.grad();
                 if grad.defined() {
-                    let state = self.state.entry(param_id).or_insert_with(|| {
-                        AdamWState {
-                            step: 0,
-                            exp_avg: Tensor::zeros_like(&param),
-                            exp_avg_sq: Tensor::zeros_like(&param),
-                            max_exp_avg_sq: if amsgrad {
-                                Some(Tensor::zeros_like(&param))
-                            } else {
-                                None
-                            },
-                        }
+                    let state = self.state.entry(param_id).or_insert_with(|| AdamWState {
+                        step: 0,
+                        exp_avg: Tensor::zeros_like(&param),
+                        exp_avg_sq: Tensor::zeros_like(&param),
+                        max_exp_avg_sq: if amsgrad {
+                            Some(Tensor::zeros_like(&param))
+                        } else {
+                            None
+                        },
                     });
 
                     state.step += 1;
@@ -206,28 +201,37 @@ impl PhoenixOptimizer for AdamW {
         state_dict.insert("beta1".to_string(), OptimizerValue::Float(self.defaults.betas.0));
         state_dict.insert("beta2".to_string(), OptimizerValue::Float(self.defaults.betas.1));
         state_dict.insert("eps".to_string(), OptimizerValue::Float(self.defaults.eps));
-        state_dict.insert("weight_decay".to_string(), OptimizerValue::Float(self.defaults.weight_decay));
+        state_dict
+            .insert("weight_decay".to_string(), OptimizerValue::Float(self.defaults.weight_decay));
         state_dict.insert("amsgrad".to_string(), OptimizerValue::Bool(self.defaults.amsgrad));
 
         for (param_id, state) in &self.state {
             let prefix = format!("state.{}", param_id);
             state_dict.insert(format!("{}.step", prefix), OptimizerValue::Int(state.step));
-            state_dict.insert(format!("{}.exp_avg", prefix),
-                OptimizerValue::Tensor(state.exp_avg.shallow_clone()));
-            state_dict.insert(format!("{}.exp_avg_sq", prefix),
-                OptimizerValue::Tensor(state.exp_avg_sq.shallow_clone()));
+            state_dict.insert(
+                format!("{}.exp_avg", prefix),
+                OptimizerValue::Tensor(state.exp_avg.shallow_clone()),
+            );
+            state_dict.insert(
+                format!("{}.exp_avg_sq", prefix),
+                OptimizerValue::Tensor(state.exp_avg_sq.shallow_clone()),
+            );
 
             if let Some(ref max_exp_avg_sq) = state.max_exp_avg_sq {
-                state_dict.insert(format!("{}.max_exp_avg_sq", prefix),
-                    OptimizerValue::Tensor(max_exp_avg_sq.shallow_clone()));
+                state_dict.insert(
+                    format!("{}.max_exp_avg_sq", prefix),
+                    OptimizerValue::Tensor(max_exp_avg_sq.shallow_clone()),
+                );
             }
         }
 
         state_dict
     }
 
-    fn load_state_dict(&mut self, state_dict: HashMap<String, Tensor>)
-        -> Result<(), OptimizerError> {
+    fn load_state_dict(
+        &mut self,
+        state_dict: HashMap<String, Tensor>,
+    ) -> Result<(), OptimizerError> {
         use crate::nn::OptimizerValue;
 
         if let Some(OptimizerValue::Float(lr)) = state_dict.get("lr") {
@@ -256,17 +260,22 @@ impl PhoenixOptimizer for AdamW {
         for (key, value) in state_dict {
             if let Some(state_key) = key.strip_prefix("state.") {
                 if let Some(dot_pos) = state_key.find('.') {
-                    let param_id: usize = state_key[..dot_pos].parse()
-                        .map_err(|_| OptimizerError::StateIncompatible { reason: "Invalid parameter ID".to_string() })?;
+                    let param_id: usize = state_key[..dot_pos].parse().map_err(|_| {
+                        OptimizerError::StateIncompatible {
+                            reason: "Invalid parameter ID".to_string(),
+                        }
+                    })?;
                     let field = &state_key[dot_pos + 1..];
 
-                    let state = param_states.entry(param_id).or_insert_with(|| {
-                        AdamWState {
-                            step: 0,
-                            exp_avg: Tensor::new(),
-                            exp_avg_sq: Tensor::new(),
-                            max_exp_avg_sq: if self.defaults.amsgrad { Some(Tensor::new()) } else { None },
-                        }
+                    let state = param_states.entry(param_id).or_insert_with(|| AdamWState {
+                        step: 0,
+                        exp_avg: Tensor::new(),
+                        exp_avg_sq: Tensor::new(),
+                        max_exp_avg_sq: if self.defaults.amsgrad {
+                            Some(Tensor::new())
+                        } else {
+                            None
+                        },
                     });
 
                     match (field, value) {

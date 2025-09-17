@@ -1,7 +1,7 @@
 //! Test runner implementation
 
-use std::time::Duration;
 use chrono;
+use std::time::Duration;
 
 pub struct TestRunner;
 
@@ -25,15 +25,17 @@ impl TestRunner {
         })
     }
 
-    pub fn get_results(&self, _run_id: &str, _status: Option<String>) -> Result<Vec<TestResult>, Box<dyn std::error::Error>> {
-        Ok(vec![
-            TestResult {
-                test_id: "test_001".to_string(),
-                execution_id: "exec_001".to_string(),
-                status: "pass".to_string(),
-                duration_ms: 100,
-            }
-        ])
+    pub fn get_results(
+        &self,
+        _run_id: &str,
+        _status: Option<String>,
+    ) -> Result<Vec<TestResult>, Box<dyn std::error::Error>> {
+        Ok(vec![TestResult {
+            test_id: "test_001".to_string(),
+            execution_id: "exec_001".to_string(),
+            status: "pass".to_string(),
+            duration_ms: 100,
+        }])
     }
 }
 
@@ -45,11 +47,7 @@ pub struct TestRunConfig {
 
 impl Default for TestRunConfig {
     fn default() -> Self {
-        Self {
-            suites: vec!["unit".to_string()],
-            parallel: true,
-            timeout: Duration::from_secs(300),
-        }
+        Self { suites: vec!["unit".to_string()], parallel: true, timeout: Duration::from_secs(300) }
     }
 }
 

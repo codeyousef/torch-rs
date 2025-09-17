@@ -9,12 +9,13 @@ impl CoverageCollector {
         CoverageCollector
     }
 
-    pub fn get_report(&self, test_run_id: &str) -> Result<CoverageReport, Box<dyn std::error::Error>> {
+    pub fn get_report(
+        &self,
+        test_run_id: &str,
+    ) -> Result<CoverageReport, Box<dyn std::error::Error>> {
         let mut module_coverage = HashMap::new();
-        module_coverage.insert("tensor".to_string(), ModuleCoverage {
-            lines_covered: 850,
-            lines_total: 1000,
-        });
+        module_coverage
+            .insert("tensor".to_string(), ModuleCoverage { lines_covered: 850, lines_total: 1000 });
 
         Ok(CoverageReport {
             test_run_id: test_run_id.to_string(),

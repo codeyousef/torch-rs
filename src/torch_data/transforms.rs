@@ -4,8 +4,8 @@
 
 #[cfg(feature = "torch-rs")]
 pub mod transforms {
-    use crate::Tensor;
     use super::super::dataset::TransformError;
+    use crate::Tensor;
 
     /// Core trait for all data transforms
     ///
@@ -211,10 +211,7 @@ pub mod transforms {
         }
 
         pub fn imagenet() -> Result<Self, TransformError> {
-            Self::new(
-                vec![0.485, 0.456, 0.406],
-                vec![0.229, 0.224, 0.225],
-            )
+            Self::new(vec![0.485, 0.456, 0.406], vec![0.229, 0.224, 0.225])
         }
     }
 
@@ -289,10 +286,7 @@ pub mod transforms {
 
     impl Resize {
         pub fn new(size: Vec<i64>) -> Self {
-            Self {
-                size,
-                interpolation: InterpolationMode::Bilinear,
-            }
+            Self { size, interpolation: InterpolationMode::Bilinear }
         }
 
         pub fn with_interpolation(size: Vec<i64>, interpolation: InterpolationMode) -> Self {
@@ -498,18 +492,12 @@ pub mod transforms {
     impl Rescale {
         /// Scale from [0, 1] to [0, 255] (uint8 range)
         pub fn to_uint8() -> Self {
-            Self {
-                scale: 255.0,
-                offset: 0.0,
-            }
+            Self { scale: 255.0, offset: 0.0 }
         }
 
         /// Scale from [0, 255] to [0, 1] (float range)
         pub fn to_float() -> Self {
-            Self {
-                scale: 1.0 / 255.0,
-                offset: 0.0,
-            }
+            Self { scale: 1.0 / 255.0, offset: 0.0 }
         }
 
         /// Custom scale and offset
@@ -539,9 +527,7 @@ pub mod transforms {
 
     impl TransformBuilder {
         pub fn new() -> Self {
-            Self {
-                transforms: Vec::new(),
-            }
+            Self { transforms: Vec::new() }
         }
 
         pub fn resize(mut self, size: Vec<i64>) -> Self {
@@ -593,7 +579,7 @@ pub mod transforms {
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::{Kind, Device};
+        use crate::{Device, Kind};
 
         #[test]
         fn test_to_tensor() {

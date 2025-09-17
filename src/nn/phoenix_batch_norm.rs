@@ -4,8 +4,8 @@
 
 #[cfg(feature = "torch-rs")]
 pub mod batch_norm {
-    use crate::{Device, Kind, Tensor, nn::phoenix::PhoenixModule, nn::Module};
     use crate::nn::phoenix::PhoenixModuleError;
+    use crate::{nn::phoenix::PhoenixModule, nn::Module, Device, Kind, Tensor};
     use std::collections::HashMap;
 
     /// Phoenix BatchNorm2d Layer
@@ -65,13 +65,8 @@ pub mod batch_norm {
 
         /// Create BatchNorm2d with custom configuration
         pub fn new_with_config(config: PhoenixBatchNormConfig) -> Self {
-            let PhoenixBatchNormConfig {
-                num_features,
-                eps,
-                momentum,
-                affine,
-                track_running_stats,
-            } = config;
+            let PhoenixBatchNormConfig { num_features, eps, momentum, affine, track_running_stats } =
+                config;
 
             assert!(num_features > 0, "num_features must be positive");
             assert!(eps > 0.0, "eps must be positive");
@@ -147,8 +142,10 @@ pub mod batch_norm {
 
             let input_channels = input_shape[1];
             if input_channels != self.num_features {
-                panic!("Input channels mismatch: expected {}, got {}",
-                       self.num_features, input_channels);
+                panic!(
+                    "Input channels mismatch: expected {}, got {}",
+                    self.num_features, input_channels
+                );
             }
 
             if self.training && xs.size()[0] <= 1 {
@@ -255,8 +252,10 @@ pub mod batch_norm {
             if self.track_running_stats {
                 buffers.insert("running_mean".to_string(), &self.running_mean);
                 buffers.insert("running_var".to_string(), &self.running_var);
-                buffers.insert("num_batches_tracked".to_string(),
-                              &Tensor::from(self.num_batches_tracked));
+                buffers.insert(
+                    "num_batches_tracked".to_string(),
+                    &Tensor::from(self.num_batches_tracked),
+                );
             }
             buffers
         }
@@ -402,15 +401,11 @@ pub mod batch_norm {
 
     impl BatchNorm1d {
         pub fn new(num_features: i64) -> Self {
-            Self {
-                inner: BatchNorm2d::new(num_features),
-            }
+            Self { inner: BatchNorm2d::new(num_features) }
         }
 
         pub fn new_with_config(config: PhoenixBatchNormConfig) -> Self {
-            Self {
-                inner: BatchNorm2d::new_with_config(config),
-            }
+            Self { inner: BatchNorm2d::new_with_config(config) }
         }
     }
 
@@ -424,26 +419,27 @@ pub mod batch_norm {
                     let reshaped = xs.unsqueeze(-1).unsqueeze(-1);
                     let output = self.inner.forward(&reshaped);
                     output.squeeze_dim(-1).squeeze_dim(-1)
-                },
+                }
                 3 => {
                     // (N, C, L) -> (N, C, L, 1) -> (N, C, L)
                     let reshaped = xs.unsqueeze(-1);
                     let output = self.inner.forward(&reshaped);
                     output.squeeze_dim(-1)
-                },
-                _ => panic!("BatchNorm1d expects 2D (N, C) or 3D (N, C, L) input, got shape: {:?}", input_shape),
+                }
+                _ => panic!(
+                    "BatchNorm1d expects 2D (N, C) or 3D (N, C, L) input, got shape: {:?}",
+                    input_shape
+                ),
             }
         }
     }
 
-    crate::impl_phoenix_module!(BatchNorm1d {
-        inner: BatchNorm2d,
-    });
+    crate::impl_phoenix_module!(BatchNorm1d { inner: BatchNorm2d });
 
     #[cfg(test)]
     mod tests {
         use super::*;
-        use crate::{Kind, Device, Tensor};
+        use crate::{Device, Kind, Tensor};
 
         #[test]
         fn test_batch_norm_2d_creation() {
@@ -490,9 +486,7 @@ pub mod batch_norm {
 
         #[test]
         fn test_batch_norm_without_affine() {
-            let bn = BatchNorm2dBuilder::new(64)
-                .affine(false)
-                .build();
+            let bn = BatchNorm2dBuilder::new(64).affine(false).build();
 
             assert!(!bn.affine);
             assert_eq!(bn.parameters().len(), 0); // No learnable parameters
@@ -500,9 +494,7 @@ pub mod batch_norm {
 
         #[test]
         fn test_batch_norm_without_tracking() {
-            let bn = BatchNorm2dBuilder::new(64)
-                .track_running_stats(false)
-                .build();
+            let bn = BatchNorm2dBuilder::new(64).track_running_stats(false).build();
 
             assert!(!bn.track_running_stats);
             assert_eq!(bn.buffers().len(), 0); // No buffers

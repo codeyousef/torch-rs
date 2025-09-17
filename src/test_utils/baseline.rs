@@ -9,7 +9,10 @@ impl BaselineTracker {
         BaselineTracker
     }
 
-    pub fn get_baseline(&self, operation: &str) -> Result<PerformanceBaseline, Box<dyn std::error::Error>> {
+    pub fn get_baseline(
+        &self,
+        operation: &str,
+    ) -> Result<PerformanceBaseline, Box<dyn std::error::Error>> {
         let mut percentiles = HashMap::new();
         percentiles.insert("p50".to_string(), 14.8);
         percentiles.insert("p95".to_string(), 18.2);
@@ -27,7 +30,11 @@ impl BaselineTracker {
         })
     }
 
-    pub fn update_baseline(&self, _operation: &str, baseline: PerformanceBaseline) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn update_baseline(
+        &self,
+        _operation: &str,
+        baseline: PerformanceBaseline,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         if baseline.variance_ms > baseline.baseline_ms * 0.5 {
             return Err("Variance too high".into());
         }
@@ -57,22 +64,28 @@ impl BaselineTracker {
         Ok(())
     }
 
-    pub fn get_history(&self, _operation: &str, limit: usize) -> Result<Vec<PerformanceBaseline>, Box<dyn std::error::Error>> {
-        Ok((0..limit.min(5)).map(|i| {
-            let mut percentiles = HashMap::new();
-            percentiles.insert("p50".to_string(), 14.8 + i as f64);
+    pub fn get_history(
+        &self,
+        _operation: &str,
+        limit: usize,
+    ) -> Result<Vec<PerformanceBaseline>, Box<dyn std::error::Error>> {
+        Ok((0..limit.min(5))
+            .map(|i| {
+                let mut percentiles = HashMap::new();
+                percentiles.insert("p50".to_string(), 14.8 + i as f64);
 
-            PerformanceBaseline {
-                operation: "op".to_string(),
-                baseline_ms: 15.0 + i as f64,
-                variance_ms: 2.0,
-                threshold_percent: 10.0,
-                samples: 100,
-                percentiles,
-                established_date: chrono::Utc::now() - chrono::Duration::days(i as i64),
-                commit_hash: format!("commit_{}", i),
-            }
-        }).collect())
+                PerformanceBaseline {
+                    operation: "op".to_string(),
+                    baseline_ms: 15.0 + i as f64,
+                    variance_ms: 2.0,
+                    threshold_percent: 10.0,
+                    samples: 100,
+                    percentiles,
+                    established_date: chrono::Utc::now() - chrono::Duration::days(i as i64),
+                    commit_hash: format!("commit_{}", i),
+                }
+            })
+            .collect())
     }
 }
 

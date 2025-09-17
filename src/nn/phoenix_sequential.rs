@@ -2,7 +2,10 @@
 //!
 //! Provides PyTorch-compatible Sequential container with dynamic module composition
 
-use crate::nn::{Module, phoenix::{PhoenixModule, PhoenixModuleError}};
+use crate::nn::{
+    phoenix::{PhoenixModule, PhoenixModuleError},
+    Module,
+};
 use crate::{Device, Tensor};
 use std::collections::HashMap;
 
@@ -20,7 +23,10 @@ trait ModuleWrapper: std::fmt::Debug {
     fn zero_grad(&mut self);
     fn device(&self) -> Option<Device>;
     fn state_dict(&self) -> HashMap<String, Tensor>;
-    fn load_state_dict(&mut self, state_dict: &HashMap<String, Tensor>) -> Result<(), PhoenixModuleError>;
+    fn load_state_dict(
+        &mut self,
+        state_dict: &HashMap<String, Tensor>,
+    ) -> Result<(), PhoenixModuleError>;
 }
 
 // Implementation of wrapper for any PhoenixModule
@@ -77,7 +83,10 @@ impl<M: PhoenixModule + std::fmt::Debug> ModuleWrapper for PhoenixModuleWrapper<
         self.module.state_dict()
     }
 
-    fn load_state_dict(&mut self, state_dict: HashMap<String, Tensor>) -> Result<(), PhoenixModuleError> {
+    fn load_state_dict(
+        &mut self,
+        state_dict: HashMap<String, Tensor>,
+    ) -> Result<(), PhoenixModuleError> {
         self.module.load_state_dict(state_dict)
     }
 }
@@ -96,10 +105,7 @@ pub struct Sequential {
 
 impl Sequential {
     pub fn new() -> Self {
-        Self {
-            modules: Vec::new(),
-            training: true,
-        }
+        Self { modules: Vec::new(), training: true }
     }
 
     pub fn add<M: PhoenixModule + std::fmt::Debug + 'static>(mut self, module: M) -> Self {
@@ -173,7 +179,6 @@ impl PhoenixModule for Sequential {
         named_params
     }
 
-
     fn to_device(&mut self, device: Device) -> Result<(), PhoenixModuleError> {
         for module in &mut self.modules {
             module.to_device(device)?;
@@ -207,7 +212,10 @@ impl PhoenixModule for Sequential {
         state_dict
     }
 
-    fn load_state_dict(&mut self, state_dict: HashMap<String, Tensor>) -> Result<(), PhoenixModuleError> {
+    fn load_state_dict(
+        &mut self,
+        state_dict: HashMap<String, Tensor>,
+    ) -> Result<(), PhoenixModuleError> {
         for (i, module) in self.modules.iter_mut().enumerate() {
             let mut module_state = HashMap::new();
             let prefix = format!("{}.", i);
@@ -242,8 +250,8 @@ macro_rules! sequential {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::nn::phoenix::{Linear, Dropout};
-    use crate::{Kind, Device};
+    use crate::nn::phoenix::{Dropout, Linear};
+    use crate::{Device, Kind};
 
     #[test]
     fn test_sequential_creation() {
@@ -254,10 +262,8 @@ mod tests {
 
     #[test]
     fn test_sequential_add() {
-        let seq = Sequential::new()
-            .add(Linear::new(10, 5))
-            .add(Dropout::new(0.5))
-            .add(Linear::new(5, 1));
+        let seq =
+            Sequential::new().add(Linear::new(10, 5)).add(Dropout::new(0.5)).add(Linear::new(5, 1));
 
         assert_eq!(seq.len(), 3);
         assert!(!seq.is_empty());
@@ -274,20 +280,14 @@ mod tests {
 
     #[test]
     fn test_sequential_macro() {
-        let seq = sequential![
-            Linear::new(10, 5),
-            Dropout::new(0.5),
-            Linear::new(5, 1),
-        ];
+        let seq = sequential![Linear::new(10, 5), Dropout::new(0.5), Linear::new(5, 1),];
 
         assert_eq!(seq.len(), 3);
     }
 
     #[test]
     fn test_sequential_forward() {
-        let seq = Sequential::new()
-            .add(Linear::new(4, 3))
-            .add(Linear::new(3, 2));
+        let seq = Sequential::new().add(Linear::new(4, 3)).add(Linear::new(3, 2));
 
         let input = Tensor::randn(&[2, 4], (Kind::Float, Device::Cpu));
         let output = seq.forward(&input);
@@ -297,9 +297,7 @@ mod tests {
 
     #[test]
     fn test_sequential_parameters() {
-        let seq = Sequential::new()
-            .add(Linear::new(4, 3))
-            .add(Linear::new(3, 2));
+        let seq = Sequential::new().add(Linear::new(4, 3)).add(Linear::new(3, 2));
 
         let params = seq.parameters();
         assert_eq!(params.len(), 4);
@@ -311,9 +309,7 @@ mod tests {
 
     #[test]
     fn test_sequential_named_parameters() {
-        let seq = Sequential::new()
-            .add(Linear::new(4, 3))
-            .add(Linear::new(3, 2));
+        let seq = Sequential::new().add(Linear::new(4, 3)).add(Linear::new(3, 2));
 
         let named_params = seq.named_parameters();
         assert_eq!(named_params.len(), 4);
@@ -328,9 +324,7 @@ mod tests {
 
     #[test]
     fn test_sequential_device_management() {
-        let mut seq = Sequential::new()
-            .add(Linear::new(4, 3))
-            .add(Linear::new(3, 2));
+        let mut seq = Sequential::new().add(Linear::new(4, 3)).add(Linear::new(3, 2));
 
         assert!(seq.to_device(Device::Cpu).is_ok());
         assert_eq!(seq.device(), Some(Device::Cpu));
@@ -338,9 +332,7 @@ mod tests {
 
     #[test]
     fn test_sequential_training_mode() {
-        let mut seq = Sequential::new()
-            .add(Linear::new(4, 3))
-            .add(Dropout::new(0.5));
+        let mut seq = Sequential::new().add(Linear::new(4, 3)).add(Dropout::new(0.5));
 
         assert!(seq.is_training());
 
@@ -353,9 +345,7 @@ mod tests {
 
     #[test]
     fn test_sequential_state_dict() {
-        let seq = Sequential::new()
-            .add(Linear::new(2, 2))
-            .add(Linear::new(2, 1));
+        let seq = Sequential::new().add(Linear::new(2, 2)).add(Linear::new(2, 1));
 
         let state_dict = seq.state_dict();
         assert_eq!(state_dict.len(), 4);
@@ -368,13 +358,9 @@ mod tests {
 
     #[test]
     fn test_sequential_load_state_dict() {
-        let mut seq1 = Sequential::new()
-            .add(Linear::new(2, 2))
-            .add(Linear::new(2, 1));
+        let mut seq1 = Sequential::new().add(Linear::new(2, 2)).add(Linear::new(2, 1));
 
-        let mut seq2 = Sequential::new()
-            .add(Linear::new(2, 2))
-            .add(Linear::new(2, 1));
+        let mut seq2 = Sequential::new().add(Linear::new(2, 2)).add(Linear::new(2, 1));
 
         let state_dict = seq1.state_dict();
         assert!(seq2.load_state_dict(&state_dict).is_ok());
@@ -382,9 +368,7 @@ mod tests {
 
     #[test]
     fn test_sequential_get() {
-        let seq = Sequential::new()
-            .add(Linear::new(4, 3))
-            .add(Dropout::new(0.5));
+        let seq = Sequential::new().add(Linear::new(4, 3)).add(Dropout::new(0.5));
 
         assert!(seq.get(0).is_some());
         assert!(seq.get(1).is_some());
@@ -393,9 +377,7 @@ mod tests {
 
     #[test]
     fn test_sequential_get_mut() {
-        let mut seq = Sequential::new()
-            .add(Linear::new(4, 3))
-            .add(Dropout::new(0.5));
+        let mut seq = Sequential::new().add(Linear::new(4, 3)).add(Dropout::new(0.5));
 
         assert!(seq.get_mut(0).is_some());
         assert!(seq.get_mut(1).is_some());
@@ -416,8 +398,7 @@ mod tests {
     fn test_sequential_buffers() {
         use crate::nn::phoenix::BatchNorm2d;
 
-        let seq = Sequential::new()
-            .add(BatchNorm2d::new(3));
+        let seq = Sequential::new().add(BatchNorm2d::new(3));
 
         let buffers = seq.buffers();
         assert_eq!(buffers.len(), 2);
@@ -426,9 +407,8 @@ mod tests {
         assert_eq!(named_buffers.len(), 2);
 
         let expected_buffer_names = ["0.running_mean", "0.running_var"];
-        let actual_buffer_names: Vec<&str> = named_buffers.iter()
-            .map(|(name, _)| name.as_str())
-            .collect();
+        let actual_buffer_names: Vec<&str> =
+            named_buffers.iter().map(|(name, _)| name.as_str()).collect();
 
         for expected_name in &expected_buffer_names {
             assert!(actual_buffer_names.contains(expected_name));

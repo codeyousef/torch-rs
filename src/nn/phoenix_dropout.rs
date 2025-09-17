@@ -2,7 +2,10 @@
 //!
 //! Provides PyTorch-compatible Dropout layers with training mode support
 
-use crate::nn::{Module, phoenix::{PhoenixModule, PhoenixModuleError}};
+use crate::nn::{
+    phoenix::{PhoenixModule, PhoenixModuleError},
+    Module,
+};
 use crate::{Device, Kind, Tensor};
 use std::collections::HashMap;
 
@@ -15,10 +18,7 @@ pub struct Dropout {
 impl Dropout {
     pub fn new(p: f64) -> Self {
         assert!((0.0..1.0).contains(&p), "Dropout probability must be between 0 and 1");
-        Self {
-            p,
-            training: true,
-        }
+        Self { p, training: true }
     }
 
     pub fn with_p(p: f64) -> Self {
@@ -102,7 +102,10 @@ impl PhoenixModule for Dropout {
         HashMap::new()
     }
 
-    fn load_state_dict(&mut self, _state_dict: HashMap<String, Tensor>) -> Result<(), PhoenixModuleError> {
+    fn load_state_dict(
+        &mut self,
+        _state_dict: HashMap<String, Tensor>,
+    ) -> Result<(), PhoenixModuleError> {
         Ok(())
     }
 }
@@ -116,10 +119,7 @@ pub struct Dropout2d {
 impl Dropout2d {
     pub fn new(p: f64) -> Self {
         assert!((0.0..1.0).contains(&p), "Dropout probability must be between 0 and 1");
-        Self {
-            p,
-            training: true,
-        }
+        Self { p, training: true }
     }
 
     pub fn with_p(p: f64) -> Self {
@@ -213,7 +213,10 @@ impl PhoenixModule for Dropout2d {
         HashMap::new()
     }
 
-    fn load_state_dict(&mut self, _state_dict: HashMap<String, Tensor>) -> Result<(), PhoenixModuleError> {
+    fn load_state_dict(
+        &mut self,
+        _state_dict: HashMap<String, Tensor>,
+    ) -> Result<(), PhoenixModuleError> {
         Ok(())
     }
 }
@@ -221,7 +224,7 @@ impl PhoenixModule for Dropout2d {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{Kind, Device};
+    use crate::{Device, Kind};
 
     #[test]
     fn test_dropout_creation() {

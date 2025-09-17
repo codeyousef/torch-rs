@@ -3,7 +3,7 @@
 //! Provides high-level training abstractions similar to PyTorch Lightning
 
 use crate::nn::phoenix::{PhoenixModule, PhoenixModuleError};
-use crate::optim::{PhoenixOptimizer, LRScheduler};
+use crate::optim::{LRScheduler, PhoenixOptimizer};
 use crate::{Device, Tensor};
 use indicatif::{ProgressBar, ProgressStyle};
 use std::collections::HashMap;
@@ -65,25 +65,25 @@ pub enum Precision {
 pub trait LightningModule: PhoenixModule {
     /// Configure optimizers and schedulers
     fn configure_optimizers(&self) -> (Box<dyn PhoenixOptimizer>, Option<Box<dyn LRScheduler>>);
-    
+
     /// Training step
     fn training_step(&mut self, batch: &Batch, batch_idx: i64) -> TrainingStepOutput;
-    
+
     /// Validation step
     fn validation_step(&mut self, batch: &Batch, batch_idx: i64) -> ValidationStepOutput;
-    
+
     /// Test step
     fn test_step(&mut self, batch: &Batch, batch_idx: i64) -> TestStepOutput;
-    
+
     /// Called at the end of training epoch
     fn on_training_epoch_end(&mut self) {}
-    
+
     /// Called at the end of validation epoch
     fn on_validation_epoch_end(&mut self) {}
-    
+
     /// Called at the beginning of training
     fn on_train_start(&mut self) {}
-    
+
     /// Called at the end of training
     fn on_train_end(&mut self) {}
 }
@@ -162,27 +162,22 @@ impl Trainer {
         // Setup
         let (mut optimizer, lr_scheduler) = model.configure_optimizers();
         model.on_train_start();
-        
+
         // Move model to device
         let device = self.config.devices[0];
         model.to_device(device)?;
-        
+
         // Training loop
         for epoch in 0..self.config.max_epochs {
             self.current_epoch = epoch;
-            
+
             // Training epoch
-            self.training_epoch(
-                model,
-                train_dataloader,
-                &mut optimizer,
-                device,
-            )?;
-            
+            self.training_epoch(model, train_dataloader, &mut optimizer, device)?;
+
             // Validation epoch
             if let Some(val_dl) = val_dataloader {
                 let val_metrics = self.validation_epoch(model, val_dl, device)?;
-                
+
                 // Early stopping
                 if let Some(patience) = self.config.early_stopping_patience {
                     if self.check_early_stopping(&val_metrics, patience) {
@@ -191,20 +186,20 @@ impl Trainer {
                     }
                 }
             }
-            
+
             // Learning rate scheduling
             if let Some(ref mut scheduler) = lr_scheduler.as_mut() {
                 scheduler.step();
             }
-            
+
             // Checkpointing
             if self.config.enable_checkpointing {
                 self.save_checkpoint(model, &optimizer, epoch)?;
             }
-            
+
             model.on_training_epoch_end();
         }
-        
+
         model.on_train_end();
         Ok(())
     }
@@ -222,7 +217,7 @@ impl Trainer {
     {
         model.set_training(true);
         dataloader.shuffle();
-        
+
         let progress_bar = if self.config.enable_progress_bar {
             let pb = ProgressBar::new(dataloader.len() as u64);
             pb.set_style(
@@ -235,54 +230,57 @@ impl Trainer {
         } else {
             None
         };
-        
+
         let mut epoch_loss = 0.0;
         let mut num_batches = 0;
-        
+
         for batch_idx in 0..dataloader.len() {
             let mut batch = dataloader.batch(batch_idx);
             batch.inputs = batch.inputs.to_device(device);
             batch.targets = batch.targets.to_device(device);
-            
+
             // Forward pass
             let output = model.training_step(&batch, batch_idx as i64);
             let loss = output.loss;
-            
+
             // Backward pass
             loss.backward();
-            
+
             // Gradient accumulation
             if (batch_idx + 1) % self.config.accumulate_grad_batches as usize == 0 {
                 // Gradient clipping
                 if let Some(clip_val) = self.config.gradient_clip_val {
                     self.clip_gradients(model, clip_val);
                 }
-                
+
                 optimizer.step()?;
                 optimizer.zero_grad();
             }
-            
+
             epoch_loss += loss.double_value(&[]);
             num_batches += 1;
             self.global_step += 1;
-            
+
             // Logging
             if self.global_step % self.config.log_every_n_steps == 0 {
                 for (key, value) in output.log {
                     println!("Step {}: {} = {:.4}", self.global_step, key, value);
                 }
             }
-            
+
             if let Some(ref pb) = progress_bar {
                 pb.inc(1);
             }
         }
-        
+
         if let Some(pb) = progress_bar {
-            pb.finish_with_message(format!("Epoch {} - Loss: {:.4}", 
-                self.current_epoch, epoch_loss / num_batches as f64));
+            pb.finish_with_message(format!(
+                "Epoch {} - Loss: {:.4}",
+                self.current_epoch,
+                epoch_loss / num_batches as f64
+            ));
         }
-        
+
         Ok(())
     }
 
@@ -297,61 +295,59 @@ impl Trainer {
         M: LightningModule,
     {
         model.set_training(false);
-        
+
         let mut total_loss = 0.0;
         let mut num_batches = 0;
         let mut all_metrics = HashMap::new();
-        
+
         for batch_idx in 0..dataloader.len() {
             let mut batch = dataloader.batch(batch_idx);
             batch.inputs = batch.inputs.to_device(device);
             batch.targets = batch.targets.to_device(device);
-            
+
             let output = model.validation_step(&batch, batch_idx as i64);
-            
+
             total_loss += output.loss.double_value(&[]);
             num_batches += 1;
-            
+
             // Aggregate metrics
             for (key, value) in output.log {
                 *all_metrics.entry(key).or_insert(0.0) += value;
             }
         }
-        
+
         // Average metrics
         let avg_loss = total_loss / num_batches as f64;
         all_metrics.insert("val_loss".to_string(), avg_loss);
-        
+
         for value in all_metrics.values_mut() {
             *value /= num_batches as f64;
         }
-        
+
         println!("\nValidation - Epoch {}: Loss = {:.4}", self.current_epoch, avg_loss);
-        
+
         model.on_validation_epoch_end();
         self.metrics_history.push(all_metrics.clone());
-        
+
         Ok(all_metrics)
     }
 
     /// Check early stopping condition
     fn check_early_stopping(&mut self, metrics: &HashMap<String, f64>, patience: i64) -> bool {
-        let metric_value = metrics.get(&self.config.early_stopping_metric)
-            .copied()
-            .unwrap_or(0.0);
-        
+        let metric_value = metrics.get(&self.config.early_stopping_metric).copied().unwrap_or(0.0);
+
         let is_better = match self.config.early_stopping_mode {
             EarlyStoppingMode::Min => metric_value < self.best_metric,
             EarlyStoppingMode::Max => metric_value > self.best_metric,
         };
-        
+
         if is_better {
             self.best_metric = metric_value;
             self.patience_counter = 0;
         } else {
             self.patience_counter += 1;
         }
-        
+
         self.patience_counter >= patience
     }
 
@@ -359,7 +355,7 @@ impl Trainer {
     fn clip_gradients<M: PhoenixModule>(&self, model: &M, max_norm: f64) {
         let params = model.parameters();
         let mut total_norm = 0.0;
-        
+
         // Calculate total norm
         for param in &params {
             let grad = param.grad();
@@ -391,14 +387,14 @@ impl Trainer {
         epoch: i64,
     ) -> Result<(), Box<dyn std::error::Error>> {
         std::fs::create_dir_all(&self.config.checkpoint_dir)?;
-        
-        let checkpoint_path = Path::new(&self.config.checkpoint_dir)
-            .join(format!("checkpoint_epoch_{}.pt", epoch));
-        
+
+        let checkpoint_path =
+            Path::new(&self.config.checkpoint_dir).join(format!("checkpoint_epoch_{}.pt", epoch));
+
         // Save model state dict
         let model_state = model.state_dict();
         let optimizer_state = optimizer.state_dict();
-        
+
         // In a real implementation, we would serialize these to a file
         // For now, just return Ok
         Ok(())
@@ -416,52 +412,52 @@ impl Trainer {
         model.set_training(false);
         let device = self.config.devices[0];
         model.to_device(device)?;
-        
+
         let mut total_loss = 0.0;
         let mut num_batches = 0;
         let mut all_metrics = HashMap::new();
-        
+
         let progress_bar = if self.config.enable_progress_bar {
             Some(ProgressBar::new(test_dataloader.len() as u64))
         } else {
             None
         };
-        
+
         for batch_idx in 0..test_dataloader.len() {
             let mut batch = test_dataloader.batch(batch_idx);
             batch.inputs = batch.inputs.to_device(device);
             batch.targets = batch.targets.to_device(device);
-            
+
             let output = model.test_step(&batch, batch_idx as i64);
-            
+
             total_loss += output.loss.double_value(&[]);
             num_batches += 1;
-            
+
             for (key, value) in output.log {
                 *all_metrics.entry(key).or_insert(0.0) += value;
             }
-            
+
             if let Some(ref pb) = progress_bar {
                 pb.inc(1);
             }
         }
-        
+
         // Average metrics
         for value in all_metrics.values_mut() {
             *value /= num_batches as f64;
         }
-        
+
         all_metrics.insert("test_loss".to_string(), total_loss / num_batches as f64);
-        
+
         if let Some(pb) = progress_bar {
             pb.finish();
         }
-        
+
         println!("\nTest Results:");
         for (key, value) in &all_metrics {
             println!("{}: {:.4}", key, value);
         }
-        
+
         Ok(all_metrics)
     }
 }

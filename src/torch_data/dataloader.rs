@@ -62,11 +62,7 @@ fn shuffle_indices_impl(indices: &mut [usize]) {
     use std::time::{SystemTime, UNIX_EPOCH};
 
     let mut hasher = DefaultHasher::new();
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos()
-        .hash(&mut hasher);
+    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_nanos().hash(&mut hasher);
     let seed = hasher.finish() as usize;
 
     for i in (1..indices.len()).rev() {
@@ -94,32 +90,19 @@ impl<D: Dataset> DataLoader<D> {
             Self::shuffle_indices(&mut indices);
         }
 
-        let collate_fn = config.collate_fn.clone()
-            .unwrap_or_else(|| Arc::new(DefaultCollateFunction));
+        let collate_fn =
+            config.collate_fn.clone().unwrap_or_else(|| Arc::new(DefaultCollateFunction));
 
-        Self {
-            dataset,
-            config,
-            indices,
-            current_batch: 0,
-            collate_fn,
-        }
+        Self { dataset, config, indices, current_batch: 0, collate_fn }
     }
 
     pub fn with_batch_size(dataset: D, batch_size: usize) -> Self {
-        let config = DataLoaderConfig {
-            batch_size,
-            ..Default::default()
-        };
+        let config = DataLoaderConfig { batch_size, ..Default::default() };
         Self::new(dataset, config)
     }
 
     pub fn with_shuffle(dataset: D, batch_size: usize, shuffle: bool) -> Self {
-        let config = DataLoaderConfig {
-            batch_size,
-            shuffle,
-            ..Default::default()
-        };
+        let config = DataLoaderConfig { batch_size, shuffle, ..Default::default() };
         Self::new(dataset, config)
     }
 
@@ -209,10 +192,7 @@ impl RandomSampler {
         let mut indices: Vec<usize> = (0..dataset_len).collect();
         shuffle_indices_impl(&mut indices);
 
-        Self {
-            indices,
-            current: 0,
-        }
+        Self { indices, current: 0 }
     }
 
     pub fn reset(&mut self) {
@@ -243,10 +223,7 @@ pub struct SequentialSampler {
 
 impl SequentialSampler {
     pub fn new(dataset_len: usize) -> Self {
-        Self {
-            current: 0,
-            total: dataset_len,
-        }
+        Self { current: 0, total: dataset_len }
     }
 
     pub fn reset(&mut self) {
@@ -277,11 +254,7 @@ pub struct BatchSampler<S: Iterator<Item = usize>> {
 
 impl<S: Iterator<Item = usize>> BatchSampler<S> {
     pub fn new(sampler: S, batch_size: usize, drop_last: bool) -> Self {
-        Self {
-            sampler,
-            batch_size,
-            drop_last,
-        }
+        Self { sampler, batch_size, drop_last }
     }
 }
 
@@ -310,7 +283,7 @@ impl<S: Iterator<Item = usize>> Iterator for BatchSampler<S> {
 mod tests {
     use super::*;
     use crate::data::dataset::{Dataset, DatasetError, DatasetMetadata};
-    use crate::{Kind, Device, Tensor};
+    use crate::{Device, Kind, Tensor};
     use std::path::PathBuf;
 
     #[derive(Debug)]
@@ -333,10 +306,7 @@ mod tests {
 
         fn get(&self, index: usize) -> Result<Self::Item, DatasetError> {
             if index >= self.size {
-                return Err(DatasetError::IndexOutOfBounds {
-                    index,
-                    size: self.size,
-                });
+                return Err(DatasetError::IndexOutOfBounds { index, size: self.size });
             }
 
             let image = Tensor::randn(&[3, 32, 32], (Kind::Float, Device::Cpu));
@@ -362,11 +332,7 @@ mod tests {
     #[test]
     fn test_dataloader_creation() {
         let dataset = MockImageDataset::new(100);
-        let config = DataLoaderConfig {
-            batch_size: 10,
-            shuffle: false,
-            ..Default::default()
-        };
+        let config = DataLoaderConfig { batch_size: 10, shuffle: false, ..Default::default() };
         let dataloader = DataLoader::new(dataset, config);
 
         assert_eq!(dataloader.len(), 10);
@@ -414,11 +380,7 @@ mod tests {
     #[test]
     fn test_dataloader_drop_last() {
         let dataset = MockImageDataset::new(25);
-        let config = DataLoaderConfig {
-            batch_size: 10,
-            drop_last: true,
-            ..Default::default()
-        };
+        let config = DataLoaderConfig { batch_size: 10, drop_last: true, ..Default::default() };
         let mut dataloader = DataLoader::new(dataset, config);
 
         assert_eq!(dataloader.len(), 2); // 25 / 10 = 2 (dropping last 5)
@@ -438,11 +400,7 @@ mod tests {
     #[test]
     fn test_dataloader_reset() {
         let dataset = MockImageDataset::new(20);
-        let config = DataLoaderConfig {
-            batch_size: 5,
-            shuffle: true,
-            ..Default::default()
-        };
+        let config = DataLoaderConfig { batch_size: 5, shuffle: true, ..Default::default() };
         let mut dataloader = DataLoader::new(dataset, config);
 
         // First iteration
@@ -549,7 +507,7 @@ mod tests {
         let batch = vec![];
 
         match collate_fn.collate(batch) {
-            Err(DatasetError::ConfigError { .. }) => {},
+            Err(DatasetError::ConfigError { .. }) => {}
             _ => panic!("Expected ConfigError for empty batch"),
         }
     }

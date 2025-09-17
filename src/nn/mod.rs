@@ -13,17 +13,17 @@ pub use module::{Module, ModuleT};
 
 // Project Phoenix module system
 #[cfg(feature = "torch-rs")]
-pub mod phoenix;
-#[cfg(feature = "torch-rs")]
 pub mod derive;
 #[cfg(feature = "torch-rs")]
-pub mod phoenix_linear;
-#[cfg(feature = "torch-rs")]
-pub mod phoenix_conv;
+pub mod phoenix;
 #[cfg(feature = "torch-rs")]
 pub mod phoenix_batch_norm;
 #[cfg(feature = "torch-rs")]
+pub mod phoenix_conv;
+#[cfg(feature = "torch-rs")]
 pub mod phoenix_dropout;
+#[cfg(feature = "torch-rs")]
+pub mod phoenix_linear;
 #[cfg(feature = "torch-rs")]
 pub mod phoenix_sequential;
 
@@ -31,13 +31,15 @@ pub mod phoenix_sequential;
 #[cfg(feature = "torch-rs")]
 pub use phoenix::{PhoenixModule, PhoenixModuleError};
 #[cfg(feature = "torch-rs")]
-pub use phoenix_linear::linear::Linear as PhoenixLinear;
+pub use phoenix_batch_norm::batch_norm::{
+    BatchNorm1d as PhoenixBatchNorm1d, BatchNorm2d as PhoenixBatchNorm2d, PhoenixBatchNormConfig,
+};
 #[cfg(feature = "torch-rs")]
 pub use phoenix_conv::conv2d::{Conv2d as PhoenixConv2d, PhoenixConvConfig};
 #[cfg(feature = "torch-rs")]
-pub use phoenix_batch_norm::batch_norm::{BatchNorm2d as PhoenixBatchNorm2d, BatchNorm1d as PhoenixBatchNorm1d, PhoenixBatchNormConfig};
-#[cfg(feature = "torch-rs")]
 pub use phoenix_dropout::Dropout as PhoenixDropout;
+#[cfg(feature = "torch-rs")]
+pub use phoenix_linear::linear::Linear as PhoenixLinear;
 #[cfg(feature = "torch-rs")]
 pub use phoenix_sequential::Sequential as PhoenixSequential;
 
@@ -83,7 +85,8 @@ pub use sequential::*;
 
 mod optimizer;
 pub use optimizer::{
-    adam, adamw, rms_prop, sgd, Adam, AdamW, Optimizer, OptimizerConfig, OptimizerValue, RmsProp, Sgd,
+    adam, adamw, rms_prop, sgd, Adam, AdamW, Optimizer, OptimizerConfig, OptimizerValue, RmsProp,
+    Sgd,
 };
 
 /// An identity layer. This just propagates its tensor input as output.

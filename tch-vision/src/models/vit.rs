@@ -2,8 +2,8 @@
 //!
 //! Implements ViT-B/16, ViT-B/32, ViT-L/16, and ViT-L/32
 
-use tch::{nn, nn::Module, nn::ModuleT, Device, Kind, Tensor};
 use std::path::Path;
+use tch::{nn, nn::Module, nn::ModuleT, Device, Kind, Tensor};
 
 /// ViT model configuration
 #[derive(Debug, Clone)]
@@ -46,26 +46,12 @@ impl Default for ViTConfig {
 impl ViTConfig {
     /// ViT-Base/16 configuration
     pub fn vit_base_16() -> Self {
-        Self {
-            patch_size: 16,
-            dim: 768,
-            depth: 12,
-            heads: 12,
-            mlp_dim: 3072,
-            ..Default::default()
-        }
+        Self { patch_size: 16, dim: 768, depth: 12, heads: 12, mlp_dim: 3072, ..Default::default() }
     }
 
     /// ViT-Base/32 configuration
     pub fn vit_base_32() -> Self {
-        Self {
-            patch_size: 32,
-            dim: 768,
-            depth: 12,
-            heads: 12,
-            mlp_dim: 3072,
-            ..Default::default()
-        }
+        Self { patch_size: 32, dim: 768, depth: 12, heads: 12, mlp_dim: 3072, ..Default::default() }
     }
 
     /// ViT-Large/16 configuration
@@ -106,7 +92,7 @@ impl MultiHeadAttention {
     fn new(vs: &nn::Path, dim: i64, heads: i64, dropout: f64) -> Self {
         let dim_head = dim / heads;
         let inner_dim = dim_head * heads;
-        
+
         Self {
             qkv: nn::linear(vs / "qkv", dim, inner_dim * 3, Default::default()),
             proj: nn::linear(vs / "proj", inner_dim, dim, Default::default()),
@@ -120,20 +106,21 @@ impl MultiHeadAttention {
 impl nn::ModuleT for MultiHeadAttention {
     fn forward_t(&self, xs: &Tensor, train: bool) -> Tensor {
         let (b, n, _) = xs.size3().unwrap();
-        
-        let qkv = xs.apply(&self.qkv)
+
+        let qkv = xs
+            .apply(&self.qkv)
             .reshape(&[b, n, 3, self.heads, self.dim_head])
             .permute(&[2, 0, 3, 1, 4]);
-        
+
         let q = qkv.get(0);
         let k = qkv.get(1);
         let v = qkv.get(2);
-        
+
         let scale = (self.dim_head as f64).sqrt();
         let attn = (q.matmul(&k.transpose(-2, -1)) / scale)
             .softmax(-1, Kind::Float)
             .dropout(self.dropout, train);
-        
+
         attn.matmul(&v)
             .transpose(1, 2)
             .reshape(&[b, n, self.heads * self.dim_head])
@@ -214,27 +201,20 @@ impl VisionTransformer {
     pub fn new(vs: &nn::Path, config: ViTConfig) -> Self {
         let num_patches = (config.image_size / config.patch_size).pow(2);
         let patch_dim = 3 * config.patch_size * config.patch_size;
-        
+
         // Patch embedding using convolution
         let patch_embed = nn::conv2d(
             vs / "patch_embed" / "proj",
             3,
             config.dim,
             config.patch_size,
-            nn::ConvConfig {
-                stride: config.patch_size,
-                ..Default::default()
-            },
+            nn::ConvConfig { stride: config.patch_size, ..Default::default() },
         );
-        
+
         // Learnable parameters
         let cls_token = vs.var("cls_token", &[1, 1, config.dim], nn::Init::Randn);
-        let pos_embed = vs.var(
-            "pos_embed",
-            &[1, num_patches + 1, config.dim],
-            nn::Init::Randn,
-        );
-        
+        let pos_embed = vs.var("pos_embed", &[1, num_patches + 1, config.dim], nn::Init::Randn);
+
         // Transformer blocks
         let blocks = (0..config.depth)
             .map(|i| {
@@ -247,11 +227,11 @@ impl VisionTransformer {
                 )
             })
             .collect();
-        
+
         // Final norm and classifier head
         let norm = nn::layer_norm(vs / "norm", vec![config.dim], Default::default());
         let head = nn::linear(vs / "head", config.dim, config.num_classes, Default::default());
-        
+
         Self {
             patch_embed,
             cls_token,
@@ -271,7 +251,10 @@ impl VisionTransformer {
     }
 
     /// Download and load pre-trained weights
-    pub async fn download_pretrained(&mut self, model_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn download_pretrained(
+        &mut self,
+        model_name: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let url = match model_name {
             "vit_b_16" => "https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-vitjx/jx_vit_base_p16_224-80ecf9dd.pth",
             "vit_b_32" => "https://github.com/rwightman/pytorch-image-models/releases/download/v0.1-vitjx/jx_vit_base_p32_224-8db57226.pth",
@@ -285,9 +268,9 @@ impl VisionTransformer {
             .ok_or("Failed to find cache directory")?
             .join("tch-vision")
             .join("models");
-        
+
         std::fs::create_dir_all(&cache_dir)?;
-        
+
         let file_name = url.split('/').last().unwrap();
         let file_path = cache_dir.join(file_name);
 
@@ -306,34 +289,32 @@ impl VisionTransformer {
 impl nn::ModuleT for VisionTransformer {
     fn forward_t(&self, xs: &Tensor, train: bool) -> Tensor {
         let b = xs.size()[0];
-        
+
         // Patch embedding: (B, C, H, W) -> (B, num_patches, dim)
-        let x = xs.apply(&self.patch_embed)
-            .flatten(2, 3)
-            .transpose(1, 2);
-        
+        let x = xs.apply(&self.patch_embed).flatten(2, 3).transpose(1, 2);
+
         // Add CLS token
         let cls_tokens = self.cls_token.expand(&[b, -1, -1], false);
         let x = Tensor::cat(&[cls_tokens, x], 1);
-        
+
         // Add positional embedding
         let x = (x + &self.pos_embed).dropout(self.pos_drop, train);
-        
+
         // Apply transformer blocks
         let mut x = x;
         for block in &self.blocks {
             x = x.apply_t(block, train);
         }
-        
+
         // Final norm
         let x = x.apply(&self.norm);
-        
+
         // Pool and classify
         let pooled = match self.pool {
             PoolingType::CLS => x.select(1, 0),
             PoolingType::Mean => x.slice(1, 1, x.size()[1], 1).mean_dim(&[1], false, Kind::Float),
         };
-        
+
         pooled.apply(&self.head)
     }
 }

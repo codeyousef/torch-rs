@@ -2,8 +2,8 @@
 //!
 //! Implements VGG11, VGG13, VGG16, and VGG19 with and without batch normalization
 
-use tch::{nn, nn::Module, nn::ModuleT, Device, Kind, Tensor};
 use std::path::Path;
+use tch::{nn, nn::Module, nn::ModuleT, Device, Kind, Tensor};
 
 /// VGG model configuration
 #[derive(Debug, Clone)]
@@ -16,13 +16,7 @@ struct VGGConfig {
 impl VGGConfig {
     fn vgg11(batch_norm: bool) -> Self {
         Self {
-            layers: vec![
-                vec![64],
-                vec![128],
-                vec![256, 256],
-                vec![512, 512],
-                vec![512, 512],
-            ],
+            layers: vec![vec![64], vec![128], vec![256, 256], vec![512, 512], vec![512, 512]],
             batch_norm,
             num_classes: 1000,
         }
@@ -82,10 +76,9 @@ impl VGG {
     /// Create a new VGG model with the given configuration
     pub fn new(vs: &nn::Path, config: VGGConfig) -> Self {
         let features = make_features(vs / "features", &config.layers, config.batch_norm);
-        
-        let avgpool = nn::seq()
-            .add_fn(|xs| xs.adaptive_avg_pool2d(&[7, 7]));
-        
+
+        let avgpool = nn::seq().add_fn(|xs| xs.adaptive_avg_pool2d(&[7, 7]));
+
         let classifier = nn::seq()
             .add(nn::linear(vs / "classifier" / "0", 512 * 7 * 7, 4096, Default::default()))
             .add_fn(|xs| xs.relu())
@@ -95,11 +88,7 @@ impl VGG {
             .add_fn(|xs| xs.dropout(0.5, true))
             .add(nn::linear(vs / "classifier" / "6", 4096, config.num_classes, Default::default()));
 
-        Self {
-            features,
-            avgpool,
-            classifier,
-        }
+        Self { features, avgpool, classifier }
     }
 
     /// Load pre-trained weights from a file
@@ -109,7 +98,10 @@ impl VGG {
     }
 
     /// Download and load pre-trained weights
-    pub async fn download_pretrained(&mut self, model_name: &str) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn download_pretrained(
+        &mut self,
+        model_name: &str,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let url = match model_name {
             "vgg11" => "https://download.pytorch.org/models/vgg11-8a719046.pth",
             "vgg11_bn" => "https://download.pytorch.org/models/vgg11_bn-6002323d.pth",
@@ -127,9 +119,9 @@ impl VGG {
             .ok_or("Failed to find cache directory")?
             .join("tch-vision")
             .join("models");
-        
+
         std::fs::create_dir_all(&cache_dir)?;
-        
+
         let file_name = url.split('/').last().unwrap();
         let file_path = cache_dir.join(file_name);
 
@@ -147,10 +139,7 @@ impl VGG {
 
 impl nn::ModuleT for VGG {
     fn forward_t(&self, xs: &Tensor, train: bool) -> Tensor {
-        xs.apply_t(&self.features, train)
-            .apply(&self.avgpool)
-            .flat_view()
-            .apply(&self.classifier)
+        xs.apply_t(&self.features, train).apply(&self.avgpool).flat_view().apply(&self.classifier)
     }
 }
 
@@ -167,10 +156,7 @@ fn make_features(vs: &nn::Path, layer_config: &[Vec<i64>], batch_norm: bool) -> 
                 in_channels,
                 out_channels,
                 3,
-                nn::ConvConfig {
-                    padding: 1,
-                    ..Default::default()
-                },
+                nn::ConvConfig { padding: 1, ..Default::default() },
             ));
             layer_idx += 1;
 
