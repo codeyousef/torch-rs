@@ -15,6 +15,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
       - name: Install PyTorch (Linux)
         if: runner.os == 'Linux'
         run: |
@@ -45,6 +47,8 @@ jobs:
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: ${{ matrix.rust }}
+      - name: Setup sccache
+        uses: mozilla-actions/sccache-action@v0.0.4
       - name: Install PyTorch (Linux)
         if: runner.os == 'Linux'
         run: |

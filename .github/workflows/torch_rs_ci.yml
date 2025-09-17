@@ -33,15 +33,30 @@ jobs:
       with:
         toolchain: ${{ matrix.rust }}
         components: rustfmt, clippy
-    
-    - name: Cache dependencies
-      uses: actions/cache@v3
+
+    - name: Setup sccache
+      uses: mozilla-actions/sccache-action@v0.0.4
+
+    - name: Cache sccache
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/sccache
+        key: ${{ runner.os }}-sccache-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-sccache-
+
+    - name: Cache Rust dependencies
+      uses: actions/cache@v4
       with:
         path: |
-          ~/.cargo/registry
-          ~/.cargo/git
-          target
-        key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ matrix.rust }}-${{ hashFiles('**/Cargo.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-cargo-${{ matrix.rust }}-
+          ${{ runner.os }}-cargo-
     
     - name: Install PyTorch (Linux)
       if: runner.os == 'Linux'
