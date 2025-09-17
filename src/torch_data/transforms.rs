@@ -232,20 +232,22 @@ pub mod transforms {
             // Handle different tensor layouts
             let normalized = if shape.len() == 3 && shape[0] as usize == self.mean.len() {
                 // CHW format: apply per-channel normalization
-                let mut result = input;
+                let mut result = input.shallow_clone();
                 for (c, (&mean, &std)) in self.mean.iter().zip(self.std.iter()).enumerate() {
                     let channel = result.select(0, c as i64);
                     let normalized_channel = (channel - mean) / std;
-                    result = result.slice_set(0, c as i64, c as i64 + 1, &normalized_channel.unsqueeze(0));
+                    // Use narrow and copy_ to set the slice
+                    let _ = result.narrow(0, c as i64, 1).copy_(&normalized_channel.unsqueeze(0));
                 }
                 result
             } else if shape.len() == 4 && shape[1] as usize == self.mean.len() {
                 // NCHW format: apply per-channel normalization
-                let mut result = input;
+                let mut result = input.shallow_clone();
                 for (c, (&mean, &std)) in self.mean.iter().zip(self.std.iter()).enumerate() {
                     let channel = result.select(1, c as i64);
                     let normalized_channel = (channel - mean) / std;
-                    result = result.slice_set(1, c as i64, c as i64 + 1, &normalized_channel.unsqueeze(1));
+                    // Use narrow and copy_ to set the slice
+                    let _ = result.narrow(1, c as i64, 1).copy_(&normalized_channel.unsqueeze(1));
                 }
                 result
             } else {

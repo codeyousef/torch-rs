@@ -6,9 +6,91 @@ use crate::nn::{Module, phoenix::{PhoenixModule, PhoenixModuleError}};
 use crate::{Device, Tensor};
 use std::collections::HashMap;
 
+// Wrapper trait that is object-safe
+trait ModuleWrapper: std::fmt::Debug {
+    fn forward(&self, xs: &Tensor) -> Tensor;
+    fn forward_t(&self, xs: &Tensor, train: bool) -> Tensor;
+    fn parameters(&self) -> Vec<&Tensor>;
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor>;
+    fn named_parameters(&self) -> HashMap<String, &Tensor>;
+    fn named_parameters_mut(&mut self) -> HashMap<String, &mut Tensor>;
+    fn to_device(&mut self, device: Device) -> Result<(), PhoenixModuleError>;
+    fn set_training(&mut self, training: bool);
+    fn is_training(&self) -> bool;
+    fn zero_grad(&mut self);
+    fn device(&self) -> Option<Device>;
+    fn state_dict(&self) -> HashMap<String, Tensor>;
+    fn load_state_dict(&mut self, state_dict: &HashMap<String, Tensor>) -> Result<(), PhoenixModuleError>;
+}
+
+// Implementation of wrapper for any PhoenixModule
+struct PhoenixModuleWrapper<M: PhoenixModule> {
+    module: M,
+}
+
+impl<M: PhoenixModule + std::fmt::Debug> ModuleWrapper for PhoenixModuleWrapper<M> {
+    fn forward(&self, xs: &Tensor) -> Tensor {
+        self.module.forward(xs)
+    }
+
+    fn forward_t(&self, xs: &Tensor, _train: bool) -> Tensor {
+        self.module.forward(xs)
+    }
+
+    fn parameters(&self) -> Vec<&Tensor> {
+        self.module.parameters()
+    }
+
+    fn parameters_mut(&mut self) -> Vec<&mut Tensor> {
+        self.module.parameters_mut()
+    }
+
+    fn named_parameters(&self) -> HashMap<String, &Tensor> {
+        self.module.named_parameters()
+    }
+
+    fn named_parameters_mut(&mut self) -> HashMap<String, &mut Tensor> {
+        self.module.named_parameters_mut()
+    }
+
+    fn to_device(&mut self, device: Device) -> Result<(), PhoenixModuleError> {
+        self.module.to_device(device)
+    }
+
+    fn set_training(&mut self, training: bool) {
+        self.module.set_training(training)
+    }
+
+    fn is_training(&self) -> bool {
+        self.module.is_training()
+    }
+
+    fn zero_grad(&mut self) {
+        self.module.zero_grad()
+    }
+
+    fn device(&self) -> Option<Device> {
+        self.module.device()
+    }
+
+    fn state_dict(&self) -> HashMap<String, Tensor> {
+        self.module.state_dict()
+    }
+
+    fn load_state_dict(&mut self, state_dict: HashMap<String, Tensor>) -> Result<(), PhoenixModuleError> {
+        self.module.load_state_dict(state_dict)
+    }
+}
+
+impl<M: PhoenixModule> std::fmt::Debug for PhoenixModuleWrapper<M> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "PhoenixModuleWrapper")
+    }
+}
+
 #[derive(Debug)]
 pub struct Sequential {
-    modules: Vec<Box<dyn PhoenixModule>>,
+    modules: Vec<Box<dyn ModuleWrapper>>,
     training: bool,
 }
 
@@ -20,13 +102,13 @@ impl Sequential {
         }
     }
 
-    pub fn add<M: PhoenixModule + 'static>(mut self, module: M) -> Self {
-        self.modules.push(Box::new(module));
+    pub fn add<M: PhoenixModule + std::fmt::Debug + 'static>(mut self, module: M) -> Self {
+        self.modules.push(Box::new(PhoenixModuleWrapper { module }));
         self
     }
 
-    pub fn push<M: PhoenixModule + 'static>(&mut self, module: M) {
-        self.modules.push(Box::new(module));
+    pub fn push<M: PhoenixModule + std::fmt::Debug + 'static>(&mut self, module: M) {
+        self.modules.push(Box::new(PhoenixModuleWrapper { module }));
     }
 
     pub fn len(&self) -> usize {
@@ -35,14 +117,6 @@ impl Sequential {
 
     pub fn is_empty(&self) -> bool {
         self.modules.is_empty()
-    }
-
-    pub fn get(&self, index: usize) -> Option<&dyn PhoenixModule> {
-        self.modules.get(index).map(|m| m.as_ref())
-    }
-
-    pub fn get_mut(&mut self, index: usize) -> Option<&mut dyn PhoenixModule> {
-        self.modules.get_mut(index).map(|m| m.as_mut())
     }
 }
 
@@ -79,65 +153,26 @@ impl PhoenixModule for Sequential {
         params
     }
 
-    fn buffers(&self) -> Vec<&Tensor> {
-        let mut buffers = Vec::new();
-        for module in &self.modules {
-            buffers.extend(module.buffers());
-        }
-        buffers
-    }
-
-    fn buffers_mut(&mut self) -> Vec<&mut Tensor> {
-        let mut buffers = Vec::new();
-        for module in &mut self.modules {
-            buffers.extend(module.buffers_mut());
-        }
-        buffers
-    }
-
-    fn named_parameters(&self) -> Vec<(String, &Tensor)> {
-        let mut named_params = Vec::new();
+    fn named_parameters(&self) -> HashMap<String, &Tensor> {
+        let mut named_params = HashMap::new();
         for (i, module) in self.modules.iter().enumerate() {
             for (name, param) in module.named_parameters() {
-                named_params.push((format!("{}.{}", i, name), param));
+                named_params.insert(format!("{}.{}", i, name), param);
             }
         }
         named_params
     }
 
-    fn named_parameters_mut(&mut self) -> Vec<(String, &mut Tensor)> {
-        let mut named_params = Vec::new();
+    fn named_parameters_mut(&mut self) -> HashMap<String, &mut Tensor> {
+        let mut named_params = HashMap::new();
         for (i, module) in self.modules.iter_mut().enumerate() {
             for (name, param) in module.named_parameters_mut() {
-                named_params.push((format!("{}.{}", i, name), param));
+                named_params.insert(format!("{}.{}", i, name), param);
             }
         }
         named_params
     }
 
-    fn named_buffers(&self) -> Vec<(String, &Tensor)> {
-        let mut named_buffers = Vec::new();
-        for (i, module) in self.modules.iter().enumerate() {
-            for (name, buffer) in module.named_buffers() {
-                named_buffers.push((format!("{}.{}", i, name), buffer));
-            }
-        }
-        named_buffers
-    }
-
-    fn named_buffers_mut(&mut self) -> Vec<(String, &mut Tensor)> {
-        let mut named_buffers = Vec::new();
-        for (i, module) in self.modules.iter_mut().enumerate() {
-            for (name, buffer) in module.named_buffers_mut() {
-                named_buffers.push((format!("{}.{}", i, name), buffer));
-            }
-        }
-        named_buffers
-    }
-
-    fn num_parameters(&self) -> usize {
-        self.modules.iter().map(|m| m.num_parameters()).sum()
-    }
 
     fn to_device(&mut self, device: Device) -> Result<(), PhoenixModuleError> {
         for module in &mut self.modules {
@@ -172,7 +207,7 @@ impl PhoenixModule for Sequential {
         state_dict
     }
 
-    fn load_state_dict(&mut self, state_dict: &HashMap<String, Tensor>) -> Result<(), PhoenixModuleError> {
+    fn load_state_dict(&mut self, state_dict: HashMap<String, Tensor>) -> Result<(), PhoenixModuleError> {
         for (i, module) in self.modules.iter_mut().enumerate() {
             let mut module_state = HashMap::new();
             let prefix = format!("{}.", i);

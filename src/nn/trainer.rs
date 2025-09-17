@@ -362,20 +362,22 @@ impl Trainer {
         
         // Calculate total norm
         for param in &params {
-            if let Some(grad) = param.grad() {
+            let grad = param.grad();
+            if grad.defined() {
                 let param_norm = grad.norm().double_value(&[]);
                 total_norm += param_norm * param_norm;
             }
         }
-        
+
         total_norm = total_norm.sqrt();
-        
+
         // Clip if necessary
         if total_norm > max_norm {
             let scale = max_norm / total_norm;
             for param in params {
-                if let Some(grad) = param.grad() {
-                    let _ = grad.mul_(scale);
+                let grad = param.grad();
+                if grad.defined() {
+                    let _ = grad.g_mul_scalar_(scale);
                 }
             }
         }

@@ -2,13 +2,14 @@
 //!
 //! AdamW differs from Adam by decoupling weight decay from gradient-based updates
 
-use crate::optim::optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
+use crate::optim::{PhoenixOptimizer, OptimizerError, ParameterGroup};
 use crate::Tensor;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct AdamWConfig {
     pub lr: f64,
+    pub learning_rate: f64,
     pub betas: (f64, f64),
     pub eps: f64,
     pub weight_decay: f64,
@@ -19,6 +20,7 @@ impl Default for AdamWConfig {
     fn default() -> Self {
         Self {
             lr: 1e-3,
+            learning_rate: 1e-3,
             betas: (0.9, 0.999),
             eps: 1e-8,
             weight_decay: 0.01, // Higher default than Adam
@@ -34,7 +36,7 @@ pub struct AdamW {
     defaults: AdamWConfig,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct AdamWState {
     step: i64,
     exp_avg: Tensor,
@@ -133,7 +135,8 @@ impl PhoenixOptimizer for AdamW {
             for (param_id, param_ptr) in group.parameters().iter().enumerate() {
                 let param = unsafe { &mut **param_ptr };
 
-                if let Some(grad) = param.grad() {
+                let grad = param.grad();
+                if grad.defined() {
                     let state = self.state.entry(param_id).or_insert_with(|| {
                         AdamWState {
                             step: 0,
@@ -173,7 +176,7 @@ impl PhoenixOptimizer for AdamW {
 
                     // Update parameters
                     let update = &corrected_exp_avg / denom * lr;
-                    let _ = param.sub_(&update);
+                    let _ = param.g_add_(&(-update));
 
                     // AdamW: Decoupled weight decay (applied directly to parameters)
                     if weight_decay > 0.0 {
@@ -194,8 +197,8 @@ impl PhoenixOptimizer for AdamW {
         }
     }
 
-    fn state_dict(&self) -> HashMap<String, crate::nn::optimizer::OptimizerValue> {
-        use crate::nn::optimizer::OptimizerValue;
+    fn state_dict(&self) -> HashMap<String, crate::nn::OptimizerValue> {
+        use crate::nn::OptimizerValue;
 
         let mut state_dict = HashMap::new();
 
@@ -223,9 +226,9 @@ impl PhoenixOptimizer for AdamW {
         state_dict
     }
 
-    fn load_state_dict(&mut self, state_dict: &HashMap<String, crate::nn::optimizer::OptimizerValue>)
+    fn load_state_dict(&mut self, state_dict: HashMap<String, Tensor>)
         -> Result<(), OptimizerError> {
-        use crate::nn::optimizer::OptimizerValue;
+        use crate::nn::OptimizerValue;
 
         if let Some(OptimizerValue::Float(lr)) = state_dict.get("lr") {
             self.defaults.lr = *lr;
@@ -254,7 +257,7 @@ impl PhoenixOptimizer for AdamW {
             if let Some(state_key) = key.strip_prefix("state.") {
                 if let Some(dot_pos) = state_key.find('.') {
                     let param_id: usize = state_key[..dot_pos].parse()
-                        .map_err(|_| OptimizerError::InvalidStateDict("Invalid parameter ID".to_string()))?;
+                        .map_err(|_| OptimizerError::StateIncompatible { reason: "Invalid parameter ID".to_string() })?;
                     let field = &state_key[dot_pos + 1..];
 
                     let state = param_states.entry(param_id).or_insert_with(|| {
@@ -297,5 +300,18 @@ impl PhoenixOptimizer for AdamW {
 
     fn add_parameter_group(&mut self, group: ParameterGroup) {
         self.parameter_groups.push(group);
+    }
+
+    fn learning_rate(&self) -> f64 {
+        self.defaults.learning_rate
+    }
+
+    fn set_learning_rate(&mut self, lr: f64) -> Result<(), OptimizerError> {
+        crate::optim::phoenix_optimizer::utils::validate_lr(lr)?;
+        self.defaults.learning_rate = lr;
+        for group in &mut self.parameter_groups {
+            group.learning_rate = lr;
+        }
+        Ok(())
     }
 }

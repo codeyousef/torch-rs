@@ -2,7 +2,7 @@
 
 #[cfg(feature = "torch-rs")]
 pub mod sgd {
-    use crate::optim::optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
+    use crate::optim::{PhoenixOptimizer, OptimizerError, ParameterGroup, utils, SGDOptimizer};
     use crate::Tensor;
     use std::collections::HashMap;
 
@@ -133,10 +133,10 @@ pub mod sgd {
                         continue;
                     }
 
-                    let grad = match param.grad() {
-                        Some(g) => g,
-                        None => continue, // No gradient, skip parameter
-                    };
+                    let grad = param.grad();
+                    if !grad.defined() {
+                        continue; // No gradient, skip parameter
+                    }
 
                     if momentum != 0.0 {
                         let momentum_buffer = group_buffers.entry(param_id).or_insert_with(|| {
@@ -144,20 +144,20 @@ pub mod sgd {
                         });
 
                         // momentum_buffer = momentum * momentum_buffer + (1 - dampening) * grad
-                        *momentum_buffer = momentum_buffer.mul_scalar(momentum) + grad.mul_scalar(1.0 - dampening);
+                        *momentum_buffer = &*momentum_buffer * momentum + &grad * (1.0 - dampening);
 
                         let update = if nesterov {
                             // Nesterov momentum: param = param - lr * (momentum * momentum_buffer + grad)
-                            grad + momentum_buffer.mul_scalar(momentum)
+                            &grad + &*momentum_buffer * momentum
                         } else {
                             // Standard momentum: param = param - lr * momentum_buffer
-                            momentum_buffer.copy()
+                            momentum_buffer.shallow_clone()
                         };
 
-                        let _ = param.add_(&update.mul_scalar(-lr));
+                        let _ = param.g_add_(&(update * (-lr)));
                     } else {
                         // No momentum: param = param - lr * grad
-                        let _ = param.add_(&grad.mul_scalar(-lr));
+                        let _ = param.g_add_(&(grad * (-lr)));
                     }
                 }
             }
@@ -208,7 +208,7 @@ pub mod sgd {
             &mut self.parameter_groups
         }
 
-        fn add_param_group(&mut self, group: ParameterGroup) {
+        fn add_parameter_group(&mut self, group: ParameterGroup) {
             let group_id = self.parameter_groups.len();
             if let Err(e) = utils::validate_parameter_group(&group, group_id) {
                 eprintln!("Warning: Invalid parameter group added: {}", e);

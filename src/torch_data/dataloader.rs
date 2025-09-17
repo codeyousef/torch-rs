@@ -55,6 +55,26 @@ impl CollateFunction for DefaultCollateFunction {
     }
 }
 
+// Standalone shuffle function that doesn't require Dataset bound
+fn shuffle_indices_impl(indices: &mut [usize]) {
+    use std::collections::hash_map::DefaultHasher;
+    use std::hash::{Hash, Hasher};
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    let mut hasher = DefaultHasher::new();
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_nanos()
+        .hash(&mut hasher);
+    let seed = hasher.finish() as usize;
+
+    for i in (1..indices.len()).rev() {
+        let j = (seed + i * 1664525 + 1013904223) % (i + 1);
+        indices.swap(i, j);
+    }
+}
+
 #[derive(Debug)]
 pub struct DataLoader<D: Dataset> {
     dataset: Arc<D>,
@@ -132,22 +152,7 @@ impl<D: Dataset> DataLoader<D> {
     }
 
     fn shuffle_indices(indices: &mut [usize]) {
-        use std::collections::hash_map::DefaultHasher;
-        use std::hash::{Hash, Hasher};
-        use std::time::{SystemTime, UNIX_EPOCH};
-
-        let mut hasher = DefaultHasher::new();
-        SystemTime::now()
-            .duration_since(UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
-            .hash(&mut hasher);
-        let seed = hasher.finish() as usize;
-
-        for i in (1..indices.len()).rev() {
-            let j = (seed + i * 1664525 + 1013904223) % (i + 1);
-            indices.swap(i, j);
-        }
+        shuffle_indices_impl(indices);
     }
 
     fn get_batch_indices(&self, batch_idx: usize) -> Vec<usize> {
@@ -202,7 +207,7 @@ pub struct RandomSampler {
 impl RandomSampler {
     pub fn new(dataset_len: usize) -> Self {
         let mut indices: Vec<usize> = (0..dataset_len).collect();
-        DataLoader::<()>::shuffle_indices(&mut indices);
+        shuffle_indices_impl(&mut indices);
 
         Self {
             indices,
@@ -212,7 +217,7 @@ impl RandomSampler {
 
     pub fn reset(&mut self) {
         self.current = 0;
-        DataLoader::<()>::shuffle_indices(&mut self.indices);
+        shuffle_indices_impl(&mut self.indices);
     }
 }
 

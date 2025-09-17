@@ -12,7 +12,7 @@ pub mod module {
     ///
     /// This trait extends the basic Module functionality with automatic parameter
     /// discovery, device management, and PyTorch-compatible features.
-    pub trait PhoenixModule: crate::nn::Module + Send + Sync {
+    pub trait PhoenixModule: crate::nn::Module {
         /// Get all trainable parameters recursively
         fn parameters(&self) -> Vec<&Tensor>;
 
@@ -171,6 +171,69 @@ pub mod module {
         },
     }
 
+    /// Extension trait for Tensor initialization methods
+    pub trait TensorInit {
+        /// Initialize using Xavier/Glorot uniform initialization
+        fn xavier_uniform_(&mut self) -> &mut Self;
+
+        /// Initialize using Xavier/Glorot normal initialization
+        fn xavier_normal_(&mut self) -> &mut Self;
+
+        /// Initialize using Kaiming uniform initialization
+        fn kaiming_uniform_(&mut self) -> &mut Self;
+
+        /// Initialize using Kaiming normal initialization
+        fn kaiming_normal_(&mut self) -> &mut Self;
+    }
+
+    impl TensorInit for Tensor {
+        fn xavier_uniform_(&mut self) -> &mut Self {
+            let dims = self.size();
+            if dims.len() >= 2 {
+                let fan_in = dims[1];
+                let fan_out = dims[0];
+                let std = (2.0 / (fan_in + fan_out) as f64).sqrt();
+                let bound = std * 3f64.sqrt();
+                let _ = self.uniform_(-bound, bound);
+            }
+            self
+        }
+
+        fn xavier_normal_(&mut self) -> &mut Self {
+            let dims = self.size();
+            if dims.len() >= 2 {
+                let fan_in = dims[1];
+                let fan_out = dims[0];
+                let std = (2.0 / (fan_in + fan_out) as f64).sqrt();
+                let _ = self.normal_(0.0, std);
+            }
+            self
+        }
+
+        fn kaiming_uniform_(&mut self) -> &mut Self {
+            let dims = self.size();
+            if dims.len() >= 2 {
+                let fan_in = dims[1];
+                let gain = 2f64.sqrt(); // for ReLU
+                let std = gain / (fan_in as f64).sqrt();
+                let bound = std * 3f64.sqrt();
+                let _ = self.uniform_(-bound, bound);
+            }
+            self
+        }
+
+        fn kaiming_normal_(&mut self) -> &mut Self {
+            let dims = self.size();
+            if dims.len() >= 2 {
+                let fan_in = dims[1];
+                let gain = 2f64.sqrt(); // for ReLU
+                let std = gain / (fan_in as f64).sqrt();
+                let _ = self.normal_(0.0, std);
+            }
+            self
+        }
+    }
+
     /// Helper trait for parameter initialization
     pub trait Init {
         /// Initialize parameters using Xavier/Glorot uniform initialization
@@ -194,6 +257,7 @@ pub mod module {
 
     impl<T: PhoenixModule> Init for T {
         fn xavier_uniform_(&mut self) {
+            use self::TensorInit;
             self.apply(|tensor| {
                 if tensor.requires_grad() {
                     let _ = tensor.xavier_uniform_();
@@ -202,6 +266,7 @@ pub mod module {
         }
 
         fn xavier_normal_(&mut self) {
+            use self::TensorInit;
             self.apply(|tensor| {
                 if tensor.requires_grad() {
                     let _ = tensor.xavier_normal_();
@@ -210,6 +275,7 @@ pub mod module {
         }
 
         fn kaiming_uniform_(&mut self) {
+            use self::TensorInit;
             self.apply(|tensor| {
                 if tensor.requires_grad() {
                     let _ = tensor.kaiming_uniform_();
@@ -218,6 +284,7 @@ pub mod module {
         }
 
         fn kaiming_normal_(&mut self) {
+            use self::TensorInit;
             self.apply(|tensor| {
                 if tensor.requires_grad() {
                     let _ = tensor.kaiming_normal_();

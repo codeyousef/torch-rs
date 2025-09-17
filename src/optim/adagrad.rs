@@ -2,13 +2,14 @@
 //!
 //! Adagrad adapts the learning rate per parameter using accumulated squared gradients
 
-use crate::optim::optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
+use crate::optim::{PhoenixOptimizer, OptimizerError, ParameterGroup};
 use crate::Tensor;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct AdagradConfig {
     pub lr: f64,
+    pub learning_rate: f64,
     pub lr_decay: f64,
     pub weight_decay: f64,
     pub initial_accumulator_value: f64,
@@ -19,6 +20,7 @@ impl Default for AdagradConfig {
     fn default() -> Self {
         Self {
             lr: 1e-2,
+            learning_rate: 1e-2,
             lr_decay: 0.0,
             weight_decay: 0.0,
             initial_accumulator_value: 0.0,
@@ -34,7 +36,7 @@ pub struct Adagrad {
     defaults: AdagradConfig,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct AdagradState {
     step: i64,
     sum: Tensor,
@@ -113,7 +115,8 @@ impl PhoenixOptimizer for Adagrad {
             for (param_id, param_ptr) in group.parameters().iter().enumerate() {
                 let param = unsafe { &mut **param_ptr };
 
-                if let Some(grad) = param.grad() {
+                let grad = param.grad();
+                if grad.defined() {
                     // Apply weight decay
                     let grad = if weight_decay > 0.0 {
                         &grad + param * weight_decay
@@ -145,7 +148,7 @@ impl PhoenixOptimizer for Adagrad {
                     let std = state.sum.sqrt() + eps;
 
                     // Update parameters
-                    let _ = param.sub_(&grad / &std * clr);
+                    let _ = param.g_add_(&(-(&grad / &std * clr)));
                 }
             }
         }
@@ -161,8 +164,8 @@ impl PhoenixOptimizer for Adagrad {
         }
     }
 
-    fn state_dict(&self) -> HashMap<String, crate::nn::optimizer::OptimizerValue> {
-        use crate::nn::optimizer::OptimizerValue;
+    fn state_dict(&self) -> HashMap<String, crate::nn::OptimizerValue> {
+        use crate::nn::OptimizerValue;
 
         let mut state_dict = HashMap::new();
 
@@ -183,9 +186,9 @@ impl PhoenixOptimizer for Adagrad {
         state_dict
     }
 
-    fn load_state_dict(&mut self, state_dict: &HashMap<String, crate::nn::optimizer::OptimizerValue>)
+    fn load_state_dict(&mut self, state_dict: &HashMap<String, crate::nn::OptimizerValue>)
         -> Result<(), OptimizerError> {
-        use crate::nn::optimizer::OptimizerValue;
+        use crate::nn::OptimizerValue;
 
         if let Some(OptimizerValue::Float(lr)) = state_dict.get("lr") {
             self.defaults.lr = *lr;
@@ -211,7 +214,7 @@ impl PhoenixOptimizer for Adagrad {
             if let Some(state_key) = key.strip_prefix("state.") {
                 if let Some(dot_pos) = state_key.find('.') {
                     let param_id: usize = state_key[..dot_pos].parse()
-                        .map_err(|_| OptimizerError::InvalidStateDict("Invalid parameter ID".to_string()))?;
+                        .map_err(|_| OptimizerError::StateIncompatible { reason: "Invalid parameter ID".to_string() })?;
                     let field = &state_key[dot_pos + 1..];
 
                     let state = param_states.entry(param_id).or_insert_with(|| {
@@ -246,5 +249,18 @@ impl PhoenixOptimizer for Adagrad {
 
     fn add_parameter_group(&mut self, group: ParameterGroup) {
         self.parameter_groups.push(group);
+    }
+
+    fn learning_rate(&self) -> f64 {
+        self.defaults.learning_rate
+    }
+
+    fn set_learning_rate(&mut self, lr: f64) -> Result<(), OptimizerError> {
+        crate::optim::phoenix_optimizer::utils::validate_lr(lr)?;
+        self.defaults.learning_rate = lr;
+        for group in &mut self.parameter_groups {
+            group.learning_rate = lr;
+        }
+        Ok(())
     }
 }

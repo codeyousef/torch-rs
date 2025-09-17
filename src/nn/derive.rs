@@ -17,10 +17,10 @@ mod phoenix_derive_impl {
         use std::collections::HashMap;
 
         /// Collect parameters from nested fields recursively
-        pub fn collect_parameters_recursive<T>(
-            fields: &[(&str, &T)],
+        pub fn collect_parameters_recursive<'a, T>(
+            fields: &'a [(&str, &T)],
             prefix: &str,
-        ) -> Vec<&Tensor>
+        ) -> Vec<&'a Tensor>
         where
             T: crate::nn::phoenix::PhoenixModule,
         {
@@ -33,10 +33,10 @@ mod phoenix_derive_impl {
         }
 
         /// Collect named parameters from nested fields recursively
-        pub fn collect_named_parameters_recursive<T>(
-            fields: &[(&str, &T)],
+        pub fn collect_named_parameters_recursive<'a, T>(
+            fields: &'a [(&str, &T)],
             prefix: &str,
-        ) -> HashMap<String, &Tensor>
+        ) -> HashMap<String, &'a Tensor>
         where
             T: crate::nn::phoenix::PhoenixModule,
         {

@@ -2,13 +2,14 @@
 //!
 //! RMSprop uses an exponential moving average of squared gradients to normalize gradients
 
-use crate::optim::optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
+use crate::optim::{PhoenixOptimizer, OptimizerError, ParameterGroup};
 use crate::Tensor;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone)]
 pub struct RMSpropConfig {
     pub lr: f64,
+    pub learning_rate: f64,
     pub alpha: f64,
     pub eps: f64,
     pub weight_decay: f64,
@@ -20,6 +21,7 @@ impl Default for RMSpropConfig {
     fn default() -> Self {
         Self {
             lr: 1e-2,
+            learning_rate: 1e-2,
             alpha: 0.99,
             eps: 1e-8,
             weight_decay: 0.0,
@@ -36,7 +38,7 @@ pub struct RMSprop {
     defaults: RMSpropConfig,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 struct RMSpropState {
     step: i64,
     square_avg: Tensor,
@@ -124,10 +126,11 @@ impl PhoenixOptimizer for RMSprop {
             for (param_id, param_ptr) in group.parameters().iter().enumerate() {
                 let param = unsafe { &mut **param_ptr };
 
-                if let Some(grad) = param.grad() {
+                let grad = param.grad();
+                if grad.defined() {
                     // Apply weight decay
                     let grad = if weight_decay > 0.0 {
-                        &grad + param * weight_decay
+                        &grad + &*param * weight_decay
                     } else {
                         grad.shallow_clone()
                     };
@@ -157,7 +160,7 @@ impl PhoenixOptimizer for RMSprop {
                     let avg = if centered {
                         // Update grad average for centered RMSprop
                         let grad_avg = state.grad_avg.as_mut().unwrap();
-                        *grad_avg = grad_avg * alpha + &grad * (1.0 - alpha);
+                        *grad_avg = &*grad_avg * alpha + &grad * (1.0 - alpha);
 
                         // Compute centered variance
                         &state.square_avg - (grad_avg * grad_avg) + eps
@@ -170,9 +173,9 @@ impl PhoenixOptimizer for RMSprop {
                     if momentum > 0.0 {
                         let buf = state.momentum_buffer.as_mut().unwrap();
                         *buf = buf * momentum + &grad / &avg;
-                        let _ = param.sub_(buf * lr);
+                        let _ = param.g_add_(&(-(buf * lr)));
                     } else {
-                        let _ = param.sub_(&grad / &avg * lr);
+                        let _ = param.g_add_(&(-(&grad / &avg * lr)));
                     }
                 }
             }
@@ -189,8 +192,8 @@ impl PhoenixOptimizer for RMSprop {
         }
     }
 
-    fn state_dict(&self) -> HashMap<String, crate::nn::optimizer::OptimizerValue> {
-        use crate::nn::optimizer::OptimizerValue;
+    fn state_dict(&self) -> HashMap<String, crate::nn::OptimizerValue> {
+        use crate::nn::OptimizerValue;
 
         let mut state_dict = HashMap::new();
 
@@ -221,9 +224,9 @@ impl PhoenixOptimizer for RMSprop {
         state_dict
     }
 
-    fn load_state_dict(&mut self, state_dict: &HashMap<String, crate::nn::optimizer::OptimizerValue>)
+    fn load_state_dict(&mut self, state_dict: &HashMap<String, crate::nn::OptimizerValue>)
         -> Result<(), OptimizerError> {
-        use crate::nn::optimizer::OptimizerValue;
+        use crate::nn::OptimizerValue;
 
         if let Some(OptimizerValue::Float(lr)) = state_dict.get("lr") {
             self.defaults.lr = *lr;
@@ -252,7 +255,7 @@ impl PhoenixOptimizer for RMSprop {
             if let Some(state_key) = key.strip_prefix("state.") {
                 if let Some(dot_pos) = state_key.find('.') {
                     let param_id: usize = state_key[..dot_pos].parse()
-                        .map_err(|_| OptimizerError::InvalidStateDict("Invalid parameter ID".to_string()))?;
+                        .map_err(|_| OptimizerError::StateIncompatible { reason: "Invalid parameter ID".to_string() })?;
                     let field = &state_key[dot_pos + 1..];
 
                     let state = param_states.entry(param_id).or_insert_with(|| {
@@ -295,5 +298,18 @@ impl PhoenixOptimizer for RMSprop {
 
     fn add_parameter_group(&mut self, group: ParameterGroup) {
         self.parameter_groups.push(group);
+    }
+
+    fn learning_rate(&self) -> f64 {
+        self.defaults.learning_rate
+    }
+
+    fn set_learning_rate(&mut self, lr: f64) -> Result<(), OptimizerError> {
+        crate::optim::phoenix_optimizer::utils::validate_lr(lr)?;
+        self.defaults.learning_rate = lr;
+        for group in &mut self.parameter_groups {
+            group.learning_rate = lr;
+        }
+        Ok(())
     }
 }

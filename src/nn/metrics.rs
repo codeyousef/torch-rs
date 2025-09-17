@@ -51,16 +51,16 @@ impl Metric for Accuracy {
         
         if self.top_k == 1 {
             let pred_classes = preds.argmax(-1, false);
-            let correct = pred_classes.eq_tensor(target).sum(tch::Kind::Int64);
-            self.correct += i64::from(correct);
+            let correct = pred_classes.eq_tensor(target).sum(crate::Kind::Int64);
+            self.correct += correct.int64_value(&[]);
         } else {
             // Top-k accuracy
             let (_, top_indices) = preds.topk(self.top_k, -1, true, true);
             let target_expanded = target.unsqueeze(-1).expand_as(&top_indices);
             let correct = top_indices.eq_tensor(&target_expanded)
-                .sum_dim_intlist(&[-1], false, tch::Kind::Int64)
-                .sum(tch::Kind::Int64);
-            self.correct += i64::from(correct);
+                .sum_dim_intlist(&[-1], false, crate::Kind::Int64)
+                .sum(crate::Kind::Int64);
+            self.correct += correct.int64_value(&[]);
         }
         
         self.total += batch_size;
@@ -105,9 +105,9 @@ impl MeanSquaredError {
 
 impl Metric for MeanSquaredError {
     fn update(&mut self, preds: &Tensor, target: &Tensor) {
-        let squared_error = (preds - target).pow_tensor_scalar(2).sum(tch::Kind::Float);
+        let squared_error = (preds - target).pow_tensor_scalar(2).sum(crate::Kind::Float);
         self.sum_squared_error += f64::from(squared_error);
-        self.count += preds.numel();
+        self.count += preds.numel() as i64;
     }
     
     fn compute(&self) -> f64 {
@@ -145,9 +145,9 @@ impl MeanAbsoluteError {
 
 impl Metric for MeanAbsoluteError {
     fn update(&mut self, preds: &Tensor, target: &Tensor) {
-        let absolute_error = (preds - target).abs().sum(tch::Kind::Float);
+        let absolute_error = (preds - target).abs().sum(crate::Kind::Float);
         self.sum_absolute_error += f64::from(absolute_error);
-        self.count += preds.numel();
+        self.count += preds.numel() as i64;
     }
     
     fn compute(&self) -> f64 {
@@ -192,13 +192,13 @@ impl Metric for F1Score {
         let pred_binary = preds.ge(self.threshold);
         let target_binary = target.ge(0.5);
         
-        let tp = (&pred_binary * &target_binary).sum(tch::Kind::Int64);
-        let fp = (&pred_binary * &target_binary.logical_not()).sum(tch::Kind::Int64);
-        let fn_val = (&pred_binary.logical_not() * &target_binary).sum(tch::Kind::Int64);
+        let tp = (&pred_binary * &target_binary).sum(crate::Kind::Int64);
+        let fp = (&pred_binary * &target_binary.logical_not()).sum(crate::Kind::Int64);
+        let fn_val = (&pred_binary.logical_not() * &target_binary).sum(crate::Kind::Int64);
         
-        self.true_positives += i64::from(tp);
-        self.false_positives += i64::from(fp);
-        self.false_negatives += i64::from(fn_val);
+        self.true_positives += tp.int64_value(&[]);
+        self.false_positives += fp.int64_value(&[]);
+        self.false_negatives += fn_val.int64_value(&[]);
     }
     
     fn compute(&self) -> f64 {
@@ -242,7 +242,7 @@ impl ConfusionMatrix {
     pub fn new(num_classes: i64) -> Self {
         Self {
             num_classes,
-            matrix: Tensor::zeros(&[num_classes, num_classes], (tch::Kind::Int64, tch::Device::Cpu)),
+            matrix: Tensor::zeros(&[num_classes, num_classes], (crate::Kind::Int64, crate::Device::Cpu)),
         }
     }
     
@@ -250,8 +250,8 @@ impl ConfusionMatrix {
         let pred_classes = preds.argmax(-1, false);
         
         for i in 0..pred_classes.size()[0] {
-            let pred_idx = i64::from(pred_classes.get(i));
-            let target_idx = i64::from(target.get(i));
+            let pred_idx = pred_classes.get(i).int64_value(&[]);
+            let target_idx = target.get(i).int64_value(&[]);
             
             if pred_idx < self.num_classes && target_idx < self.num_classes {
                 let current = self.matrix.get(target_idx).get(pred_idx);
@@ -266,17 +266,17 @@ impl ConfusionMatrix {
     
     pub fn reset(&mut self) {
         self.matrix = Tensor::zeros(&[self.num_classes, self.num_classes], 
-                                    (tch::Kind::Int64, tch::Device::Cpu));
+                                    (crate::Kind::Int64, crate::Device::Cpu));
     }
     
     pub fn precision_per_class(&self) -> Tensor {
-        let tp_fp_sum = self.matrix.sum_dim_intlist(&[0], false, tch::Kind::Float);
+        let tp_fp_sum = self.matrix.sum_dim_intlist(&[0], false, crate::Kind::Float);
         let tp = self.matrix.diag(0);
         tp / (tp_fp_sum + 1e-10)
     }
     
     pub fn recall_per_class(&self) -> Tensor {
-        let tp_fn_sum = self.matrix.sum_dim_intlist(&[1], false, tch::Kind::Float);
+        let tp_fn_sum = self.matrix.sum_dim_intlist(&[1], false, crate::Kind::Float);
         let tp = self.matrix.diag(0);
         tp / (tp_fn_sum + 1e-10)
     }

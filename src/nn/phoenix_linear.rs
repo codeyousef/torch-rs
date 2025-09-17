@@ -224,11 +224,13 @@ pub mod linear {
         }
 
         fn zero_grad(&mut self) {
-            if let Some(grad) = self.weight.grad() {
+            let mut grad = self.weight.grad();
+            if grad.defined() {
                 let _ = grad.zero_();
             }
             if let Some(ref bias) = self.bias {
-                if let Some(grad) = bias.grad() {
+                let mut grad = bias.grad();
+                if grad.defined() {
                     let _ = grad.zero_();
                 }
             }

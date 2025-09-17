@@ -62,20 +62,20 @@ impl PhoenixModule for Dropout {
         vec![]
     }
 
-    fn named_parameters(&self) -> Vec<(String, &Tensor)> {
-        vec![]
+    fn named_parameters(&self) -> HashMap<String, &Tensor> {
+        HashMap::new()
     }
 
-    fn named_parameters_mut(&mut self) -> Vec<(String, &mut Tensor)> {
-        vec![]
+    fn named_parameters_mut(&mut self) -> HashMap<String, &mut Tensor> {
+        HashMap::new()
     }
 
-    fn named_buffers(&self) -> Vec<(String, &Tensor)> {
-        vec![]
+    fn named_buffers(&self) -> HashMap<String, &Tensor> {
+        HashMap::new()
     }
 
-    fn named_buffers_mut(&mut self) -> Vec<(String, &mut Tensor)> {
-        vec![]
+    fn named_buffers_mut(&mut self) -> HashMap<String, &mut Tensor> {
+        HashMap::new()
     }
 
     fn num_parameters(&self) -> usize {
@@ -102,7 +102,7 @@ impl PhoenixModule for Dropout {
         HashMap::new()
     }
 
-    fn load_state_dict(&mut self, _state_dict: &HashMap<String, Tensor>) -> Result<(), PhoenixModuleError> {
+    fn load_state_dict(&mut self, _state_dict: HashMap<String, Tensor>) -> Result<(), PhoenixModuleError> {
         Ok(())
     }
 }
@@ -173,20 +173,20 @@ impl PhoenixModule for Dropout2d {
         vec![]
     }
 
-    fn named_parameters(&self) -> Vec<(String, &Tensor)> {
-        vec![]
+    fn named_parameters(&self) -> HashMap<String, &Tensor> {
+        HashMap::new()
     }
 
-    fn named_parameters_mut(&mut self) -> Vec<(String, &mut Tensor)> {
-        vec![]
+    fn named_parameters_mut(&mut self) -> HashMap<String, &mut Tensor> {
+        HashMap::new()
     }
 
-    fn named_buffers(&self) -> Vec<(String, &Tensor)> {
-        vec![]
+    fn named_buffers(&self) -> HashMap<String, &Tensor> {
+        HashMap::new()
     }
 
-    fn named_buffers_mut(&mut self) -> Vec<(String, &mut Tensor)> {
-        vec![]
+    fn named_buffers_mut(&mut self) -> HashMap<String, &mut Tensor> {
+        HashMap::new()
     }
 
     fn num_parameters(&self) -> usize {
@@ -213,7 +213,7 @@ impl PhoenixModule for Dropout2d {
         HashMap::new()
     }
 
-    fn load_state_dict(&mut self, _state_dict: &HashMap<String, Tensor>) -> Result<(), PhoenixModuleError> {
+    fn load_state_dict(&mut self, _state_dict: HashMap<String, Tensor>) -> Result<(), PhoenixModuleError> {
         Ok(())
     }
 }

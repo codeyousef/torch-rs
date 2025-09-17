@@ -3,6 +3,9 @@
 //! Enhanced optimizer traits and implementations for Project Phoenix
 
 #[cfg(feature = "torch-rs")]
+pub use optimizer::*;
+
+#[cfg(feature = "torch-rs")]
 pub mod optimizer {
     use crate::Tensor;
     use std::collections::HashMap;
@@ -11,7 +14,7 @@ pub mod optimizer {
     ///
     /// This trait provides the fundamental functionality that all optimization algorithms
     /// must implement, including parameter updates, gradient management, and state handling.
-    pub trait PhoenixOptimizer: Send + Sync {
+    pub trait PhoenixOptimizer {
         /// Update parameters based on gradients
         ///
         /// # Contract
@@ -78,7 +81,7 @@ pub mod optimizer {
         fn parameter_groups_mut(&mut self) -> &mut [ParameterGroup];
 
         /// Add a parameter group
-        fn add_param_group(&mut self, group: ParameterGroup);
+        fn add_parameter_group(&mut self, group: ParameterGroup);
 
         /// Get the number of parameter groups
         fn num_param_groups(&self) -> usize {
@@ -146,6 +149,36 @@ pub mod optimizer {
         pub fn nesterov(mut self, nesterov: bool) -> Self {
             self.nesterov = Some(nesterov);
             self
+        }
+
+        /// Get an option value from the group
+        pub fn get_option(&self, name: &str) -> Option<f64> {
+            match name {
+                "lr" | "learning_rate" => Some(self.learning_rate),
+                "weight_decay" => Some(self.weight_decay),
+                "momentum" => self.momentum,
+                "dampening" => self.dampening,
+                "nesterov" => self.nesterov.map(|b| if b { 1.0 } else { 0.0 }),
+                "beta1" | "beta2" | "eps" | "amsgrad" | "alpha" | "lr_decay" | "initial_accumulator_value" | "centered" => None,
+                _ => None,
+            }
+        }
+
+        /// Set an option value in the group
+        pub fn set_option(&mut self, name: &str, value: f64) {
+            match name {
+                "lr" | "learning_rate" => self.learning_rate = value,
+                "weight_decay" => self.weight_decay = value,
+                "momentum" => self.momentum = Some(value),
+                "dampening" => self.dampening = Some(value),
+                "nesterov" => self.nesterov = Some(value != 0.0),
+                _ => {},
+            }
+        }
+
+        /// Get parameters as a slice
+        pub fn parameters(&self) -> &[*mut Tensor] {
+            &self.parameters
         }
     }
 
@@ -227,11 +260,12 @@ pub mod optimizer {
                 unsafe {
                     let param = &mut **param_ptr;
                     if param.requires_grad() {
-                        if let Some(grad) = param.grad() {
-                            let decay = param * weight_decay;
-                            let updated_grad = grad + decay;
-                            param.set_grad(&updated_grad);
+                        let grad = param.grad();
+                        if !grad.defined() {
+                            continue;
                         }
+                        // Apply weight decay directly to gradient
+                        let _ = grad.g_add_(&(&*param * weight_decay));
                     }
                 }
             }
@@ -301,7 +335,8 @@ pub mod optimizer {
                 unsafe {
                     let param = &mut **param_ptr;
                     if param.requires_grad() {
-                        if let Some(grad) = param.grad() {
+                        let mut grad = param.grad();
+                        if grad.defined() {
                             let _ = grad.zero_();
                         }
                     }

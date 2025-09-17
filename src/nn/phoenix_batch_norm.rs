@@ -54,7 +54,7 @@ pub mod batch_norm {
         /// # Arguments
         /// * `num_features` - Number of channels from input
         pub fn new(num_features: i64) -> Self {
-            Self::new_with_config(BatchNormConfig {
+            Self::new_with_config(PhoenixBatchNormConfig {
                 num_features,
                 eps: 1e-5,
                 momentum: 0.1,
@@ -64,8 +64,8 @@ pub mod batch_norm {
         }
 
         /// Create BatchNorm2d with custom configuration
-        pub fn new_with_config(config: BatchNormConfig) -> Self {
-            let BatchNormConfig {
+        pub fn new_with_config(config: PhoenixBatchNormConfig) -> Self {
+            let PhoenixBatchNormConfig {
                 num_features,
                 eps,
                 momentum,
@@ -291,10 +291,12 @@ pub mod batch_norm {
 
         fn zero_grad(&mut self) {
             if self.affine {
-                if let Some(grad) = self.weight.grad() {
+                let mut grad = self.weight.grad();
+                if grad.defined() {
                     let _ = grad.zero_();
                 }
-                if let Some(grad) = self.bias.grad() {
+                let mut grad = self.bias.grad();
+                if grad.defined() {
                     let _ = grad.zero_();
                 }
             }
@@ -325,7 +327,7 @@ pub mod batch_norm {
 
     /// Configuration for BatchNorm layers
     #[derive(Debug, Clone)]
-    pub struct BatchNormConfig {
+    pub struct PhoenixBatchNormConfig {
         pub num_features: i64,
         pub eps: f64,
         pub momentum: f64,
@@ -335,7 +337,7 @@ pub mod batch_norm {
 
     /// Builder for BatchNorm2d layers
     pub struct BatchNorm2dBuilder {
-        config: BatchNormConfig,
+        config: PhoenixBatchNormConfig,
         device: Device,
         dtype: Kind,
     }
@@ -343,7 +345,7 @@ pub mod batch_norm {
     impl BatchNorm2dBuilder {
         pub fn new(num_features: i64) -> Self {
             Self {
-                config: BatchNormConfig {
+                config: PhoenixBatchNormConfig {
                     num_features,
                     eps: 1e-5,
                     momentum: 0.1,
@@ -405,7 +407,7 @@ pub mod batch_norm {
             }
         }
 
-        pub fn new_with_config(config: BatchNormConfig) -> Self {
+        pub fn new_with_config(config: PhoenixBatchNormConfig) -> Self {
             Self {
                 inner: BatchNorm2d::new_with_config(config),
             }

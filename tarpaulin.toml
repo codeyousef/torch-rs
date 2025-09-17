@@ -1,0 +1,54 @@
+# Tarpaulin configuration for code coverage
+[default]
+# Coverage tool settings
+verbose = true
+timeout = "300s"
+exclude-files = [
+    "*/build.rs",
+    "*/tests/*",
+    "*/examples/*",
+    "*/benches/*",
+]
+ignore-panics = true
+force-clean = true
+follow-exec = true
+
+# Coverage targets
+fail-under = 85  # Fail if coverage is below 85%
+
+# Output formats
+out = ["Html", "Lcov", "Json"]
+output-dir = "target/coverage"
+
+# Excluded patterns
+exclude = [
+    # Debug implementations
+    "Debug",
+    "Clone",
+    "PartialEq",
+
+    # Error formatting
+    "Display",
+    "Error",
+
+    # Deprecated code
+    "deprecated",
+]
+
+# Test configuration
+all-features = true
+workspace = true
+release = false
+
+# Parallel execution
+jobs = 4
+
+[critical-paths]
+# Critical paths requiring 95% coverage
+include = [
+    "src/tensor/*.rs",
+    "src/nn/*.rs",
+    "src/optim/*.rs",
+    "src/torch_data/*.rs",
+]
+fail-under = 95

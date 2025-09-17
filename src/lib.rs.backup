@@ -31,10 +31,6 @@ pub use tensor::{
 pub mod nn;
 pub mod vision;
 
-// Test utilities (available for testing)
-#[cfg(any(test, feature = "test-utils"))]
-pub mod test_utils;
-
 // Project Phoenix modules (feature-gated)
 #[cfg(feature = "torch-rs")]
 pub mod torch_data;

@@ -54,7 +54,7 @@ pub mod conv2d {
         /// * `out_channels` - Number of output channels
         /// * `kernel_size` - Size of the convolving kernel
         pub fn new(in_channels: i64, out_channels: i64, kernel_size: i64) -> Self {
-            Self::new_with_config(ConvConfig {
+            Self::new_with_config(PhoenixConvConfig {
                 in_channels,
                 out_channels,
                 kernel_size: (kernel_size, kernel_size),
@@ -67,8 +67,8 @@ pub mod conv2d {
         }
 
         /// Create Conv2d with custom configuration
-        pub fn new_with_config(config: ConvConfig) -> Self {
-            let ConvConfig {
+        pub fn new_with_config(config: PhoenixConvConfig) -> Self {
+            let PhoenixConvConfig {
                 in_channels,
                 out_channels,
                 kernel_size,
@@ -237,11 +237,13 @@ pub mod conv2d {
         }
 
         fn zero_grad(&mut self) {
-            if let Some(grad) = self.weight.grad() {
+            let mut grad = self.weight.grad();
+            if grad.defined() {
                 let _ = grad.zero_();
             }
             if let Some(ref bias) = self.bias {
-                if let Some(grad) = bias.grad() {
+                let mut grad = bias.grad();
+                if grad.defined() {
                     let _ = grad.zero_();
                 }
             }
@@ -264,7 +266,7 @@ pub mod conv2d {
 
     /// Configuration for Conv2d layer
     #[derive(Debug, Clone)]
-    pub struct ConvConfig {
+    pub struct PhoenixConvConfig {
         pub in_channels: i64,
         pub out_channels: i64,
         pub kernel_size: (i64, i64),
@@ -277,7 +279,7 @@ pub mod conv2d {
 
     /// Builder for Conv2d layers
     pub struct Conv2dBuilder {
-        config: ConvConfig,
+        config: PhoenixConvConfig,
         device: Device,
         dtype: Kind,
     }
@@ -285,7 +287,7 @@ pub mod conv2d {
     impl Conv2dBuilder {
         pub fn new(in_channels: i64, out_channels: i64, kernel_size: i64) -> Self {
             Self {
-                config: ConvConfig {
+                config: PhoenixConvConfig {
                     in_channels,
                     out_channels,
                     kernel_size: (kernel_size, kernel_size),
@@ -357,6 +359,7 @@ pub mod conv2d {
     }
 
     /// Depthwise separable convolution
+    #[derive(Debug)]
     pub struct DepthwiseSeparableConv2d {
         depthwise: Conv2d,
         pointwise: Conv2d,

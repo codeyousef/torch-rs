@@ -11,7 +11,7 @@ pub mod dataset {
     ///
     /// This trait provides the fundamental functionality that all dataset implementations
     /// must provide, including data access, downloading, and metadata.
-    pub trait Dataset: Send + Sync {
+    pub trait Dataset: Send {
         /// The type of items returned by this dataset
         type Item;
 
@@ -260,7 +260,7 @@ pub mod dataset {
         }
     }
 
-    impl<'a, D: Dataset> Dataset for SubsetDataset<'a, D> {
+    impl<'a, D: Dataset + Sync> Dataset for SubsetDataset<'a, D> {
         type Item = D::Item;
 
         fn len(&self) -> usize {
