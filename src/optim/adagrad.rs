@@ -2,7 +2,7 @@
 //!
 //! Adagrad adapts the learning rate per parameter using accumulated squared gradients
 
-use super::phoenix_optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
+use crate::optim::optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
 use crate::Tensor;
 use std::collections::HashMap;
 

@@ -387,7 +387,7 @@ pub mod conv2d {
         }
     }
 
-    tch::impl_phoenix_module!(DepthwiseSeparableConv2d {
+    crate::impl_phoenix_module!(DepthwiseSeparableConv2d {
         depthwise: Conv2d,
         pointwise: Conv2d,
     });

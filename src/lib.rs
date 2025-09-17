@@ -33,9 +33,11 @@ pub mod vision;
 
 // Project Phoenix modules (feature-gated)
 #[cfg(feature = "torch-rs")]
+pub mod torch_data;
+#[cfg(feature = "torch-rs")]
 pub mod optim;
 #[cfg(feature = "torch-rs")]
-pub use data::{
+pub use torch_data::{
     Dataset, VisionDataset, Transform, DatasetError, TransformError,
     DataLoader, DataLoaderConfig, MnistDataset, Cifar10Dataset,
     CollateFunction, DefaultCollateFunction,

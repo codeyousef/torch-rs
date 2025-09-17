@@ -98,14 +98,6 @@ impl PhoenixModule for Dropout {
         self.training
     }
 
-    fn train(&mut self) {
-        self.set_training(true);
-    }
-
-    fn eval(&mut self) {
-        self.set_training(false);
-    }
-
     fn state_dict(&self) -> HashMap<String, Tensor> {
         HashMap::new()
     }
@@ -215,14 +207,6 @@ impl PhoenixModule for Dropout2d {
 
     fn is_training(&self) -> bool {
         self.training
-    }
-
-    fn train(&mut self) {
-        self.set_training(true);
-    }
-
-    fn eval(&mut self) {
-        self.set_training(false);
     }
 
     fn state_dict(&self) -> HashMap<String, Tensor> {

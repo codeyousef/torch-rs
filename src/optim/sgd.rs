@@ -2,7 +2,7 @@
 
 #[cfg(feature = "torch-rs")]
 pub mod sgd {
-    use super::*;
+    use crate::optim::optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
     use crate::Tensor;
     use std::collections::HashMap;
 

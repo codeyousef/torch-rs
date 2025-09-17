@@ -2,7 +2,7 @@
 //!
 //! RMSprop uses an exponential moving average of squared gradients to normalize gradients
 
-use super::phoenix_optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
+use crate::optim::optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
 use crate::Tensor;
 use std::collections::HashMap;
 

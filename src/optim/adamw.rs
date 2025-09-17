@@ -2,7 +2,7 @@
 //!
 //! AdamW differs from Adam by decoupling weight decay from gradient-based updates
 
-use super::phoenix_optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
+use crate::optim::optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
 use crate::Tensor;
 use std::collections::HashMap;
 

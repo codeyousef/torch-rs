@@ -2,7 +2,7 @@
 //!
 //! Provides PyTorch-compatible Adam optimizer with adaptive learning rates
 
-use super::phoenix_optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
+use crate::optim::optimizer::{PhoenixOptimizer, OptimizerError, ParameterGroup};
 use crate::Tensor;
 use std::collections::HashMap;
 

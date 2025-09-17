@@ -4,6 +4,106 @@ use crate::wrappers::optimizer::COptimizer;
 use crate::{TchError, Tensor};
 use std::sync::{Arc, Mutex};
 
+/// Represents different types of values that can be stored in optimizer state.
+/// This is used by advanced optimizers to track various parameters like
+/// momentum, learning rates, step counts, etc.
+#[derive(Debug)]
+pub enum OptimizerValue {
+    /// Floating-point scalar value (e.g., learning rate, momentum)
+    Float(f64),
+    /// Integer value (e.g., step count, epoch number)
+    Int(i64),
+    /// Boolean flag (e.g., initialization state)
+    Bool(bool),
+    /// Tensor value (e.g., accumulated gradients, momentum buffers)
+    Tensor(Tensor),
+}
+
+impl Clone for OptimizerValue {
+    fn clone(&self) -> Self {
+        match self {
+            OptimizerValue::Float(v) => OptimizerValue::Float(*v),
+            OptimizerValue::Int(v) => OptimizerValue::Int(*v),
+            OptimizerValue::Bool(v) => OptimizerValue::Bool(*v),
+            OptimizerValue::Tensor(t) => OptimizerValue::Tensor(t.shallow_clone()),
+        }
+    }
+}
+
+impl OptimizerValue {
+    /// Creates an OptimizerValue from a float
+    pub fn from_float(v: f64) -> Self {
+        OptimizerValue::Float(v)
+    }
+
+    /// Creates an OptimizerValue from an integer
+    pub fn from_int(v: i64) -> Self {
+        OptimizerValue::Int(v)
+    }
+
+    /// Creates an OptimizerValue from a boolean
+    pub fn from_bool(v: bool) -> Self {
+        OptimizerValue::Bool(v)
+    }
+
+    /// Creates an OptimizerValue from a Tensor
+    pub fn from_tensor(t: Tensor) -> Self {
+        OptimizerValue::Tensor(t)
+    }
+
+    /// Returns the value as a float if it is one
+    pub fn as_float(&self) -> Option<f64> {
+        match self {
+            OptimizerValue::Float(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as an integer if it is one
+    pub fn as_int(&self) -> Option<i64> {
+        match self {
+            OptimizerValue::Int(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// Returns the value as a boolean if it is one
+    pub fn as_bool(&self) -> Option<bool> {
+        match self {
+            OptimizerValue::Bool(v) => Some(*v),
+            _ => None,
+        }
+    }
+
+    /// Returns a reference to the Tensor if it is one
+    pub fn as_tensor(&self) -> Option<&Tensor> {
+        match self {
+            OptimizerValue::Tensor(t) => Some(t),
+            _ => None,
+        }
+    }
+
+    /// Checks if the value is a float
+    pub fn is_float(&self) -> bool {
+        matches!(self, OptimizerValue::Float(_))
+    }
+
+    /// Checks if the value is an integer
+    pub fn is_int(&self) -> bool {
+        matches!(self, OptimizerValue::Int(_))
+    }
+
+    /// Checks if the value is a boolean
+    pub fn is_bool(&self) -> bool {
+        matches!(self, OptimizerValue::Bool(_))
+    }
+
+    /// Checks if the value is a Tensor
+    pub fn is_tensor(&self) -> bool {
+        matches!(self, OptimizerValue::Tensor(_))
+    }
+}
+
 /// An optimizer to run gradient descent.
 #[derive(Debug)]
 pub struct Optimizer {

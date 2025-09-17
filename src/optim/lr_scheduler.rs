@@ -2,7 +2,7 @@
 //!
 //! Provides various strategies for adjusting learning rates during training
 
-use super::phoenix_optimizer::PhoenixOptimizer;
+use crate::optim::optimizer::PhoenixOptimizer;
 use std::f64::consts::PI;
 
 /// Base trait for learning rate schedulers

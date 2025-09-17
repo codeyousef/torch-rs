@@ -161,14 +161,6 @@ impl PhoenixModule for Sequential {
         self.training
     }
 
-    fn train(&mut self) {
-        self.set_training(true);
-    }
-
-    fn eval(&mut self) {
-        self.set_training(false);
-    }
-
     fn state_dict(&self) -> HashMap<String, Tensor> {
         let mut state_dict = HashMap::new();
         for (i, module) in self.modules.iter().enumerate() {
@@ -199,6 +191,7 @@ impl PhoenixModule for Sequential {
     }
 }
 
+#[macro_export]
 macro_rules! sequential {
     ($($module:expr),* $(,)?) => {
         {
@@ -210,8 +203,6 @@ macro_rules! sequential {
         }
     };
 }
-
-pub use sequential;
 
 #[cfg(test)]
 mod tests {

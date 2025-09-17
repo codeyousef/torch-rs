@@ -434,7 +434,7 @@ pub mod batch_norm {
         }
     }
 
-    tch::impl_phoenix_module!(BatchNorm1d {
+    crate::impl_phoenix_module!(BatchNorm1d {
         inner: BatchNorm2d,
     });
 

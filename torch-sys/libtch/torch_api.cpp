@@ -190,15 +190,15 @@ int at_autocast_increment_nesting() {
 
 bool at_autocast_is_enabled() {
   PROTECT(
-    return at::autocast::is_enabled();
+    return at::autocast::is_autocast_enabled(at::kCUDA);
   )
   return -1;
 }
 
 bool at_autocast_set_enabled(bool b) {
   PROTECT(
-    bool is_enabled = at::autocast::is_enabled();
-    at::autocast::set_enabled(b);
+    bool is_enabled = at::autocast::is_autocast_enabled(at::kCUDA);
+    at::autocast::set_autocast_enabled(at::kCUDA, b);
     return is_enabled;
   )
   return -1;
