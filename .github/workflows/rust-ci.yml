@@ -24,7 +24,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install torch torchvision
+          python3 -m pip install torch torchvision --break-system-packages
       - name: Install PyTorch (Windows)
         if: runner.os == 'Windows'
         run: |
@@ -54,7 +54,7 @@ jobs:
         if: runner.os == 'macOS'
         run: |
           python3 -m pip install --upgrade pip
-          python3 -m pip install torch torchvision
+          python3 -m pip install torch torchvision --break-system-packages
       - name: Run tests
         run: cargo test --features "download-libtorch,torch-rs"
 

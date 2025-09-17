@@ -52,7 +52,7 @@ jobs:
       if: runner.os == 'macOS'
       run: |
         python3 -m pip install --upgrade pip
-        python3 -m pip install torch torchvision
+        python3 -m pip install torch torchvision --break-system-packages
     - name: Install PyTorch (Windows)
       if: runner.os == 'Windows'
       run: |
@@ -112,7 +112,7 @@ jobs:
       uses: dtolnay/rust-toolchain@nightly
     
     - name: Install PyTorch
-      run: pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+      run: pip3 install torch torchvision --index-url https://download.pytorch.org/whl/cpu --break-system-packages
     
     - name: Run benchmarks
       run: cargo bench --features torch-rs | tee benchmark-results.txt
@@ -146,8 +146,8 @@ jobs:
     
     - name: Install dependencies
       run: |
-        pip install setuptools-rust numpy pytest
-        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
+        pip install setuptools-rust numpy pytest --break-system-packages
+        pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu --break-system-packages
     
     - name: Build Python package
       working-directory: ./python
